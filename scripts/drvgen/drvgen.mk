@@ -8,19 +8,17 @@ DRVGEN_PATH := drivers/misc/mediatek/dws/$(MTK_PLATFORM)
 
 ifeq ($(strip $(CONFIG_ARM64)), y)
 MAIN_DT_NAMES := mediatek/$(subst $\",,$(CONFIG_MTK_PLATFORM))
-PROJ_DT_NAMES := mediatek/$(subst $\",,$(CONFIG_ARCH_MTK_PROJECT))
+PROJ_DT_NAMES := $(subst $\",,$(CONFIG_BUILD_ARM64_DTB_OVERLAY_IMAGE_NAMES))
 else
 MAIN_DT_NAMES := $(subst $\",,$(CONFIG_MTK_PLATFORM))
 PROJ_DT_NAMES := $(subst $\",,$(CONFIG_ARCH_MTK_PROJECT))
 endif
 
-MAIN_DTB_NAMES := $(addsuffix .dtb,$(MAIN_DT_NAMES))
-PROJ_DTB_NAMES := $(addsuffix .dtb,$(PROJ_DT_NAMES))
-MAIN_DTB_FILES := $(addprefix $(objtree)/arch/$(SRCARCH)/boot/dts/, $(MAIN_DTB_NAMES))
-PROJ_DTB_FILES := $(addprefix $(objtree)/arch/$(SRCARCH)/boot/dts/, $(PROJ_DTB_NAMES))
+MAIN_DTB_FILES := $(addsuffix .dtb,$(addprefix $(objtree)/arch/$(SRCARCH)/boot/dts/, $(MAIN_DT_NAMES)))
+PROJ_DTB_FILES := $(addsuffix .dtb,$(addprefix $(objtree)/arch/$(SRCARCH)/boot/dts/, $(PROJ_DT_NAMES)))
 PROJ_DTS_FILES := $(addsuffix .dts,$(addprefix $(srctree)/arch/$(SRCARCH)/boot/dts/, $(PROJ_DT_NAMES)))
 ABS_DTB_FILES := $(abspath $(addsuffix .dtb,$(addprefix $(objtree)/arch/$(SRCARCH)/boot/dts/,$(PROJ_DT_NAMES))))
-ABS_DTB2_FILES := $(abspath $(addprefix $(objtree)/arch/$(SRCARCH)/boot/,mtk.dtb))
+ABS_DTB2_FILES := $(abspath $(addsuffix .dtb,$(addprefix $(objtree)/arch/$(SRCARCH)/boot/dts/, $(MAIN_DT_NAMES))))
 
 export PROJ_DTB_FILES
 export PROJ_DTS_FILES
@@ -56,11 +54,6 @@ $(DRVGEN_FILE_LIST): $(DRVGEN_TOOL) $(DWS_FILE) $(DRVGEN_FIG) $(PROJ_DTS_FILES)
 		fi \
 	done
 
-dtbo_check: $(MAIN_DTB_NAMES) $(PROJ_DTB_NAMES)
-	for i in $(PROJ_DTB_FILES); do \
-		$(srctree)/scripts/dtc/ufdt_apply_overlay $(MAIN_DTB_FILES) $$i $$i.merge;\
-	done
-
 my_dtbo_id := 0
 define mk_dtboimg_cfg
 echo $(1) >>$(2);\
@@ -94,8 +87,5 @@ $(objtree)/dtbimg.cfg: FORCE
 	else \
 		rm $@.tmp; \
 fi
-
-else
-dtbo_check:
 
 endif#MTK_PLATFORM
