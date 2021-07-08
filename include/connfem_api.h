@@ -16,21 +16,10 @@
 /*******************************************************************************
  *                                M A C R O S
  ******************************************************************************/
-#define CONNFEM_IOCTL_NUM 0x46
-#define CONNFEM_DEVICE_FILE "/dev/connfem"
-
-#define IO_REQUEST_CONNFEM_IS_AVAILABLE 0x0
-#define IO_REQUEST_CONNFEM_GET_INFO 0x1
-
-#define CONNFEM_IOR_IS_AVAILABLE _IOR(CONNFEM_IOCTL_NUM, \
-					IO_REQUEST_CONNFEM_IS_AVAILABLE, \
-					struct connfem_ior_is_available_para)
-#define CONNFEM_IOR_GET_INFO _IOR(CONNFEM_IOCTL_NUM, \
-					IO_REQUEST_CONNFEM_GET_INFO, int)
-
-#define CONNFEM_PIN_COUNT	32
+#define CONNFEM_EPAELNA_PIN_COUNT	32
 #define CONNFEM_PART_NAME_SIZE	64
 #define CONNFEM_FLAG_NAME_SIZE	32
+#define CONNFEM_EPAELNA_LAA_PIN_COUNT	8
 
 /*******************************************************************************
  *                            D A T A   T Y P E S
@@ -66,7 +55,7 @@ struct connfem_part {
 	unsigned char pid;
 };
 
-struct connfem_pin_mapping {
+struct connfem_epaelna_pin {
 	unsigned char antsel;
 	unsigned char fem;
 	bool polarity;
@@ -80,11 +69,24 @@ struct connfem_epaelna_fem_info {
 
 struct connfem_epaelna_pin_info {
 	unsigned int count;
-	struct connfem_pin_mapping pin[CONNFEM_PIN_COUNT];
+	struct connfem_epaelna_pin pin[CONNFEM_EPAELNA_PIN_COUNT];
+};
+
+struct connfem_epaelna_laa_pin {
+	unsigned char gpio;
+	unsigned char md_mode;
+	unsigned char wf_mode;
+};
+
+struct connfem_epaelna_laa_pin_info {
+	unsigned int count;
+	struct connfem_epaelna_laa_pin
+		pin[CONNFEM_EPAELNA_LAA_PIN_COUNT];
 };
 
 struct connfem_epaelna_flags_wifi {
 	bool open_loop;
+	bool laa;
 };
 
 struct connfem_epaelna_flags_bt {
@@ -93,8 +95,6 @@ struct connfem_epaelna_flags_bt {
 	bool epa;
 	bool elna;
 };
-
-typedef bool(*CONNFEMLIB_IS_AVAILABLE_FUNC)(enum connfem_type fem_type);
 
 /*******************************************************************************
  *                           P U B L I C   D A T A
@@ -105,9 +105,11 @@ typedef bool(*CONNFEMLIB_IS_AVAILABLE_FUNC)(enum connfem_type fem_type);
  ******************************************************************************/
 extern bool connfem_is_available(enum connfem_type fem_type);
 extern int connfem_epaelna_get_fem_info(
-				struct connfem_epaelna_fem_info *fem_info);
+			struct connfem_epaelna_fem_info *fem_info);
 extern int connfem_epaelna_get_pin_info(
-				struct connfem_epaelna_pin_info *pin_info);
+			struct connfem_epaelna_pin_info *pin_info);
+extern int connfem_epaelna_laa_get_pin_info(
+			struct connfem_epaelna_laa_pin_info *laa_pin_info);
 extern int connfem_epaelna_get_flags(enum connfem_subsys subsys, void *flags);
 extern int connfem_epaelna_get_flags_string(enum connfem_subsys subsys,
 			unsigned int *num_flags, char ***flags);

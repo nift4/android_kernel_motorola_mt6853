@@ -3,6 +3,7 @@
  * Copyright (c) 2019 MediaTek Inc.
  */
 
+#include <dt-bindings/pinctrl/mt65xx.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
@@ -29,7 +30,10 @@
 #define COMPOSED_STATE_NAME_SIZE (CONNFEM_PART_NAME_SIZE * \
 				CONNFEM_PORT_NUM + (CONNFEM_PORT_NUM - 1) + 1)
 #define FEM_MAPPING_SIZE 3
+#define LAA_PINMUX_SIZE 2
 #define GPIO_NODE_NAME "gpio-hwid"
+#define EPA_ELNA_NAME "epa_elna"
+#define EPA_ELNA_MTK_NAME "epa_elna_mtk"
 
 /*******************************************************************************
  *							D A T A   T Y P E S
@@ -52,7 +56,10 @@
 /*******************************************************************************
  *							 F U N C T I O N S
  ******************************************************************************/
-
+bool __weak connfem_is_internal(void)
+{
+	return false;
+}
 
 /**
  * connfem_dt_parser_init - it is called when driver probe and it will parse
@@ -77,19 +84,38 @@ void connfem_dt_parser_init(struct platform_device *pdev,
 	int pid = 0;
 	int vid = 0;
 	char composed_state_name[COMPOSED_STATE_NAME_SIZE];
-	struct pinctrl *pinctrl = NULL;
+	bool internal_load = false;
+	bool device_tree_is_invalid = false;
+	struct connfem_epaelna_fem_info *fem_info = &total_info->fem_info;
+	int idx5;
 	struct pinctrl_state *pin_state = NULL;
+	struct pinctrl *pinctrl = NULL;
+	int idx4;
+	int idx2;
+	int cnt;
+	const char *str = NULL;
 	char prop_name[16];
-	int idx2, idx3, cur_idx;
+	struct connfem_epaelna_pin_info *pin_info = &total_info->pin_info;
+	struct device_node *pinctrl_elem_np = NULL;
+	int cnt2;
+	int idx3;
 	int err2, err3;
 	unsigned int value2, value3;
-	int cnt, cnt2;
-	const char *str = NULL;
-	struct device_node *pinctrl_elem_np = NULL;
-	struct connfem_epaelna_pin_info pin_info = total_info->pin_info;
-	struct connfem_epaelna_fem_info fem_info = total_info->fem_info;
+	unsigned int gpio_value, gpio_value2, md_mode_value, wf_mode_value;
+	int cnt3;
+	struct connfem_epaelna_laa_pin_info *laa_p_info =
+			&total_info->laa_pin_info;
 
-	epaelna_node = of_get_child_by_name(devnode, "epa_elna");
+	internal_load = connfem_is_internal();
+	pr_info("connfem_is_internal(): %d", internal_load);
+
+	if (internal_load) {
+		epaelna_node = of_get_child_by_name(devnode, EPA_ELNA_MTK_NAME);
+		pr_info("Using %s", EPA_ELNA_MTK_NAME);
+	} else {
+		epaelna_node = of_get_child_by_name(devnode, EPA_ELNA_NAME);
+		pr_info("Using %s", EPA_ELNA_NAME);
+	}
 
 	/* Get GPIO value to determine which parts should be used */
 	gpio_count = of_gpio_named_count(epaelna_node, GPIO_NODE_NAME);
@@ -161,7 +187,8 @@ void connfem_dt_parser_init(struct platform_device *pdev,
 	pr_info("parts_selected: %d, read parts from %d",
 			parts_selected, idx);
 	while ((np = of_parse_phandle(epaelna_node, "parts", idx)) &&
-			port_num < CONNFEM_PORT_NUM) {
+			port_num < CONNFEM_PORT_NUM &&
+			device_tree_is_invalid == false) {
 		vid = 0;
 		pid = 0;
 
@@ -170,50 +197,54 @@ void connfem_dt_parser_init(struct platform_device *pdev,
 				idx, np->name, np->full_name);
 #endif
 
-		strncpy(fem_info.part_name[port_num],
-				np->full_name, CONNFEM_PART_NAME_SIZE-1);
-		fem_info.part_name[port_num][CONNFEM_PART_NAME_SIZE-1] = 0;
+		strncpy(fem_info->part_name[port_num],
+				np->name, CONNFEM_PART_NAME_SIZE-1);
+		fem_info->part_name[port_num][CONNFEM_PART_NAME_SIZE-1] = 0;
 
 		err = of_property_read_u32(np, "vid", &vid);
 		if (err < 0) {
-			pr_info("Fetch parts[%d].vid failed: %d",
+			pr_info("[WARN] Fetch parts[%d].vid failed: %d",
 					idx, err);
+			device_tree_is_invalid = true;
 		} else {
 			pr_info("Fetch parts[%d].vid ok: %d",
 					idx, vid);
-			fem_info.part[port_num].vid = vid;
+			fem_info->part[port_num].vid = vid;
 			switch (port_num) {
 			case CONNFEM_PORT_WF0:
-				fem_info.id |= VID_2G(vid);
+				fem_info->id |= VID_2G(vid);
 				break;
 			case CONNFEM_PORT_WF1:
-				fem_info.id |= VID_5G(vid);
+				fem_info->id |= VID_5G(vid);
 				break;
 			default:
-				pr_info("unknown port_num: %d",
+				pr_info("[WARN] unknown port_num: %d",
 						port_num);
+				device_tree_is_invalid = true;
 				break;
 			}
 		}
 
 		err = of_property_read_u32(np, "pid", &pid);
 		if (err < 0) {
-			pr_info("Fetch parts[%d].pid failed: %d",
+			pr_info("[WARN] Fetch parts[%d].pid failed: %d",
 					idx, err);
+			device_tree_is_invalid = true;
 		} else {
 			pr_info("Fetch parts[%d].pid ok: %d",
 					idx, pid);
-			fem_info.part[port_num].pid = pid;
+			fem_info->part[port_num].pid = pid;
 			switch (port_num) {
 			case CONNFEM_PORT_WF0:
-				fem_info.id |= PID_2G(pid);
+				fem_info->id |= PID_2G(pid);
 				break;
 			case CONNFEM_PORT_WF1:
-				fem_info.id |= PID_5G(pid);
+				fem_info->id |= PID_5G(pid);
 				break;
 			default:
-				pr_info("unknown port_num: %d",
+				pr_info("[WARN] unknown port_num: %d",
 						port_num);
+				device_tree_is_invalid = true;
 				break;
 			}
 		}
@@ -224,25 +255,32 @@ void connfem_dt_parser_init(struct platform_device *pdev,
 		port_num++;
 	}
 
-	pr_info("fem_info.id: 0x%08x", fem_info.id);
+	pr_info("total_info->fem_info.id: 0x%08x", total_info->fem_info.id);
 #if (CONNFEM_DBG == 1)
 	for (idx = 0; idx < CONNFEM_PORT_NUM; idx++) {
-		pr_info("fem_info.part[%d].vid: %d",
+		pr_info("total_info->fem_info.part[%d].vid: %d",
 				idx,
-				fem_info.part[idx].vid);
-		pr_info("fem_info.part[%d].pid: %d",
+				total_info->fem_info.part[idx].vid);
+		pr_info("total_info->fem_info.part[%d].pid: %d",
 				idx,
-				fem_info.part[idx].pid);
-		pr_info("fem_info.part_name[%d]: %s",
+				total_info->fem_info.part[idx].pid);
+		pr_info("total_info->fem_info.part_name[%d]: %s",
 				idx,
-				fem_info.part_name[idx]);
+				total_info->fem_info.part_name[idx]);
 	}
 #endif
 
+	if (total_info->fem_info.id == 0 || device_tree_is_invalid == true) {
+		pr_info("[WARN] Please make sure fem id is correct, 0x%08x, %d",
+				total_info->fem_info.id,
+				device_tree_is_invalid);
+		return;
+	}
+
 	/* Compose pinctrl-names from parts */
 	snprintf(composed_state_name, COMPOSED_STATE_NAME_SIZE-1, "%s_%s",
-			 fem_info.part_name[CONNFEM_PORT_WF0],
-			 fem_info.part_name[CONNFEM_PORT_WF1]);
+			 fem_info->part_name[CONNFEM_PORT_WF0],
+			 fem_info->part_name[CONNFEM_PORT_WF1]);
 	composed_state_name[COMPOSED_STATE_NAME_SIZE-1] = 0;
 
 #if (CONNFEM_DBG == 1)
@@ -263,8 +301,9 @@ void connfem_dt_parser_init(struct platform_device *pdev,
 		} else {
 			err = pinctrl_select_state(pinctrl, pin_state);
 
-			if (err < 0)
+			if (err < 0) {
 				pr_info("failed to apply pinctrl: %d", err);
+			}
 			else
 				pr_info("'%s' pinmux successfully applied",
 						composed_state_name);
@@ -275,20 +314,20 @@ void connfem_dt_parser_init(struct platform_device *pdev,
 
 	/* Pinctrl - FEM Function Mapping */
 	idx2 = 0;
-	cur_idx = 0;
+	idx4 = 0;
+	idx5 = 0;
 
 	/* Find all pinctrl-names */
 	cnt = of_property_count_strings(devnode, "pinctrl-names");
 	pr_info("number of elements in 'pinctrl-names': %d", cnt);
+
 	for (idx = 0; idx < cnt; idx++) {
 		/* List all pinctrl-names */
 		err = of_property_read_string_index(devnode, "pinctrl-names",
 								idx, &str);
 		if (err < 0) {
-#if (CONNFEM_DBG == 1)
 			pr_info("failed to get pinctrl-names[%d]: %d",
 					idx, err);
-#endif
 			continue;
 		}
 
@@ -337,6 +376,7 @@ void connfem_dt_parser_init(struct platform_device *pdev,
 				idx2++;
 				continue;
 			}
+			/* Parse mapping node */
 			cnt2 = of_property_count_u32_elems(np, "mapping");
 			pr_info("total num of elements in pins_cmd_dat.'mapping': %d",
 					cnt2);
@@ -357,46 +397,115 @@ void connfem_dt_parser_init(struct platform_device *pdev,
 					err3 = of_property_read_u32_index(
 							np, "mapping",
 							idx3 + 2, &value3);
-					pr_info("[%d]ANTSEL{er:%d,value:%d}, [%d]FemPIN{er:%d,value:%d}, [%d]polarity{er:%d,value:%d}",
+					pr_info("[%d]ANTSEL{er:%d,value:%d}, [%d]FemPIN{er:%d,value:0x%02x}, [%d]polarity{er:%d,value:%d}",
 						idx3, err, value,
 						idx3 + 1, err2, value2,
 						idx3 + 2, err3, value3);
-					pin_info.pin[cur_idx].antsel = value;
-					pin_info.pin[cur_idx].fem = value2;
-					pin_info.pin[cur_idx].polarity = value3;
-					cur_idx++;
+					pin_info->pin[idx4].antsel =
+						value;
+					pin_info->pin[idx4].fem =
+						value2;
+					pin_info->pin[idx4].polarity =
+						value3;
+					idx4++;
 				}
-				pin_info.count = cur_idx;
+				pin_info->count = idx4;
 			}
+
+			/* Parse laa-pinmux node */
+			idx3 = 0;
+			cnt3 = of_property_count_u32_elems(np, "laa-pinmux");
+			pr_info("total num of elements in pins_cmd_dat.'laa-pinmux': %d",
+					cnt3);
+			if (cnt3 > 0 && (cnt3 % LAA_PINMUX_SIZE) != 0) {
+				pr_info("total num of elements in 'mapping'(%d) is not a multiple of %d",
+						cnt3,
+						LAA_PINMUX_SIZE);
+			} else {
+				for (idx3 = 0; idx3 < cnt3;
+					idx3 += LAA_PINMUX_SIZE) {
+					value = value2 = 0;
+					err = of_property_read_u32_index(
+							np, "laa-pinmux",
+							idx3, &value);
+					err2 = of_property_read_u32_index(
+							np, "laa-pinmux",
+							idx3 + 1, &value2);
+					gpio_value = MTK_GET_PIN_NO(value);
+					gpio_value2 = MTK_GET_PIN_NO(value2);
+					wf_mode_value = MTK_GET_PIN_FUNC(value);
+					md_mode_value =
+						MTK_GET_PIN_FUNC(value2);
+					pr_info("[%d]gpio1{er:%d,value:%d}, gpio2{er:%d,value:%d}, wf_mode{er:%d,value:%d}, md_mode{er:%d,value:%d}",
+						idx3, err, gpio_value,
+						err2, gpio_value2,
+						err, wf_mode_value,
+						err2, md_mode_value);
+
+					if (gpio_value == gpio_value2) {
+						laa_p_info->pin[idx5].gpio =
+							gpio_value;
+						laa_p_info->pin[idx5].wf_mode =
+							wf_mode_value;
+						laa_p_info->pin[idx5].md_mode =
+							md_mode_value;
+						idx5++;
+					} else {
+						pr_info("[WARN] laa-pinmux get 2 different gpio: %d and %d",
+								gpio_value,
+								gpio_value2);
+						break;
+					}
+				}
+				laa_p_info->count = idx5;
+			}
+
 			of_node_put(np);
 			np = NULL;
 
 			of_node_put(pinctrl_elem_np);
 			pinctrl_elem_np = NULL;
+
 			idx2++;
 		}
 		break;
 	}
 
-	//Set it to true if any pin mapping is existed
-	if (pin_info.count > 0)
+	/* Get wifi and bt flags */
+	connfem_dt_parser_wifi(epaelna_node, total_info, parts_selected);
+	connfem_dt_parser_bt(epaelna_node, total_info, parts_selected);
+
+	/* Set it to true if any pin mapping is existed */
+	if (fem_info->id > 0 &&
+		device_tree_is_invalid == false)
 		total_info->connfem_available = true;
+
+	/* Make sure all values are 0 if connfem_available is false */
+	if (total_info->connfem_available == false)
+		memset(total_info, 0,
+			sizeof(struct connfem_epaelna_total_info));
 
 #if (CONNFEM_DBG == 1)
 	pr_info("total_info->pin_info.count: %d",
-			pin_info.count);
-	for (idx = 0; idx < pin_info.count; idx++) {
+			total_info->pin_info.count);
+	for (idx = 0; idx < total_info->pin_info.count; idx++) {
 		pr_info("total_info->pin_info.pin[%d].antsel: %d",
-				idx, pin_info.pin[idx].antsel);
-		pr_info("total_info->pin_info.pin[%d].fem: %d",
-				idx, pin_info.pin[idx].fem);
+				idx, total_info->pin_info.pin[idx].antsel);
+		pr_info("total_info->pin_info.pin[%d].fem: 0x%02x",
+				idx, total_info->pin_info.pin[idx].fem);
 		pr_info("total_info->pin_info.pin[%d].polarity: %d",
-				idx, pin_info.pin[idx].polarity);
+				idx, total_info->pin_info.pin[idx].polarity);
+	}
+
+	pr_info("total_info->laa_pin_info.count: %d",
+			total_info->laa_pin_info.count);
+	for (idx = 0; idx < total_info->laa_pin_info.count; idx++) {
+		pr_info("total_info->laa_pin_info.pin[%d].gpio: %d",
+				idx, total_info->laa_pin_info.pin[idx].gpio);
+		pr_info("total_info->laa_pin_info.pin[%d].md_mode: %d",
+				idx, total_info->laa_pin_info.pin[idx].md_mode);
+		pr_info("total_info->laa_pin_info.pin[%d].wf_mode: %d",
+				idx, total_info->laa_pin_info.pin[idx].wf_mode);
 	}
 #endif
-
-	/* Get wifi and bt flags */
-	connfem_dt_parser_wifi(pdev, total_info);
-	connfem_dt_parser_bt(pdev, total_info);
-
 }

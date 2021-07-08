@@ -52,27 +52,23 @@ struct connfem_wifi_flag_entry_struct {
  *	3. connfem_dt_flag_entry_struct wifi_flags_mapping[]
  ******************************************************************************/
 struct connfem_wifi_flag_struct {
-	struct connfem_wifi_flag_entry_struct wf0;
-	struct connfem_wifi_flag_entry_struct wf1;
 	struct connfem_wifi_flag_entry_struct open_loop;
-	struct connfem_wifi_flag_entry_struct etssi_dc;
+	struct connfem_wifi_flag_entry_struct laa;
 };
 
 /* Wifi Flags Storage & Mapping Table */
 struct connfem_wifi_flag_struct wifi_flags = {
-	.wf0 =       {false, "wf0"},
-	.wf1 =       {false, "wf1"},
 	.open_loop = {false, "open-loop"},
-	.etssi_dc =  {false, "etssi-dc"},
+	.laa =  {false, "laa"},
 };
 
 struct connfem_dt_flag_entry_struct wifi_flags_mapping[] = {
-	{wifi_flags.wf0.name,       &wifi_flags.wf0.en},
-	{wifi_flags.wf1.name,       &wifi_flags.wf1.en},
 	{wifi_flags.open_loop.name, &wifi_flags.open_loop.en},
-	{wifi_flags.etssi_dc.name,  &wifi_flags.etssi_dc.en},
+	{wifi_flags.laa.name,  &wifi_flags.laa.en},
 	{NULL, NULL}
 };
+
+static char **wf_flag_names_pa;
 
 /*******************************************************************************
  *				  F U N C T I O N   D E C L A R A T I O N S
@@ -91,30 +87,56 @@ struct connfem_dt_flag_entry_struct wifi_flags_mapping[] = {
 /*******************************************************************************
  *							 F U N C T I O N S
  ******************************************************************************/
-void connfem_dt_parser_wifi(struct platform_device *pdev,
-				struct connfem_epaelna_total_info *total_info)
+void connfem_dt_parser_wifi(struct device_node *devnode,
+				struct connfem_epaelna_total_info *total_info,
+				int parts_selectd)
 {
-	const struct device_node *devnode = pdev->dev.of_node;
-	struct device_node *epaelna_node = NULL;
 	struct property *prop;
 	struct device_node *np = NULL;
-	int idx;
+	struct device_node *flags_np = NULL;
+	struct device_node *flags_num_np = NULL;
+	int idx, err;
+	const char *str = NULL;
+	char child_name[16];
+	struct connfem_container *wf_flag_names_cont = NULL;
 
-	epaelna_node = of_get_child_by_name(devnode, "epa_elna");
+	flags_np = of_get_child_by_name(devnode, "wifi");
 
-	np = of_get_child_by_name(epaelna_node, "wifi");
-	if (!np) {
-		pr_info("Missing wifi child");
-		return;
+	snprintf(child_name, sizeof(child_name), "flags-%d", parts_selectd);
+#if (CONNFEM_DBG == 1)
+		pr_info("composed to flags-%d: %s", parts_selectd, child_name);
+#endif
+
+	flags_num_np = of_get_child_by_name(flags_np, child_name);
+
+	err = connfem_dt_parser_flag_names(flags_num_np,
+			&total_info->wf_flag_names_cont,
+			&wf_flag_names_pa);
+
+	if (err < 0) {
+		pr_info("%s, failed to get Wifi flags: %d", __func__, err);
+	} else {
+		wf_flag_names_cont = total_info->wf_flag_names_cont;
+		pr_info("%s, found %d Wifi flags",
+				__func__,
+				wf_flag_names_cont->cnt);
+		for (idx = 0; idx < wf_flag_names_cont->cnt; idx++) {
+			str = (char *)connfem_container_entry(
+					wf_flag_names_cont, idx);
+			pr_info("%s, [%d] Container: '%s',PtrArray: '%s'",
+					__func__, idx, str,
+					wf_flag_names_pa[idx]);
+		}
 	}
-	for_each_property_of_node(np, prop) {
+
+	for_each_property_of_node(flags_num_np, prop) {
 
 		/* skip properties added automatically */
 		if (!of_prop_cmp(prop->name, "name"))
 			continue;
 
-		pr_info("wifi node get, np->name: %s, prop->name: %s",
-				np->name, prop->name);
+		pr_info("wifi node get, flags_num_np->name: %s, prop->name: %s",
+				flags_num_np->name, prop->name);
 		idx = 0;
 		while (wifi_flags_mapping[idx].name != NULL) {
 			if (strncmp(prop->name,
@@ -130,9 +152,13 @@ void connfem_dt_parser_wifi(struct platform_device *pdev,
 		}
 	}
 	of_node_put(np);
+	of_node_put(flags_num_np);
 
-	total_info->flags_wifi.open_loop = *wifi_flags_mapping[2].addr;
+	total_info->flags_wifi.open_loop = *wifi_flags_mapping[0].addr;
+	total_info->flags_wifi.laa = *wifi_flags_mapping[1].addr;
 
-	pr_info("total_info.flags_wifi.open_loop: %d",
+	pr_info("total_info->flags_wifi.open_loop: %d",
 			total_info->flags_wifi.open_loop);
+	pr_info("total_info->flags_wifi.laa: %d",
+			total_info->flags_wifi.laa);
 }

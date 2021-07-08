@@ -55,7 +55,7 @@ int connfem_epaelna_get_fem_info(struct connfem_epaelna_fem_info *fem_info)
 
 	if (!fem_info) {
 		ret = -EFAULT;
-		pr_info("%s para is NULL", __func__);
+		pr_info("[WARN] %s, fme_info is NULL", __func__);
 	} else {
 		ret = _connfem_epaelna_get_fem_info(fem_info);
 	}
@@ -68,6 +68,13 @@ int connfem_epaelna_get_pin_info(struct connfem_epaelna_pin_info *pin_info)
 {
 	int ret = 0;
 
+	if (!pin_info) {
+		ret = -EFAULT;
+		pr_info("[WARN] %s, pin_info is NULL", __func__);
+	} else {
+		ret = _connfem_epaelna_get_pin_info(pin_info);
+	}
+
 	return ret;
 }
 EXPORT_SYMBOL(connfem_epaelna_get_pin_info);
@@ -76,33 +83,41 @@ int connfem_epaelna_get_flags(enum connfem_subsys subsys, void *flags)
 {
 	int ret = 0;
 
-	return ret;
-}
-EXPORT_SYMBOL(connfem_epaelna_get_flags);
+	if (!flags) {
+		pr_info("%s para is NULL", __func__);
+		return -EFAULT;
+	}
 
-int connfem_get_info(enum connfem_type fem_type, enum connfem_subsys subsys,
-					 void *data)
-{
-	int ret = 0;
+	switch (subsys) {
+	case CONNFEM_SUBSYS_WIFI:
+		return _connfem_epaelna_get_flags_wifi(
+				(struct connfem_epaelna_flags_wifi *)flags);
 
-	switch (fem_type) {
-	case CONNFEM_TYPE_EPAELNA:
-		switch (subsys) {
-		case CONNFEM_SUBSYS_WIFI:
-			break;
-		case CONNFEM_SUBSYS_BT:
-			break;
-		default:
-			pr_info("%s, unknown subsys: %d",
-					 __func__, subsys);
-			break;
-		}
-		break;
+	case CONNFEM_SUBSYS_BT:
+		return _connfem_epaelna_get_flags_bt(
+				(struct connfem_epaelna_flags_bt *)flags);
+
 	default:
-		pr_info("%s, unknown fem_type: %d", __func__, fem_type);
+		pr_info("%s, unknown subsys: %d", __func__, subsys);
 		break;
 	}
 
 	return ret;
 }
-EXPORT_SYMBOL(connfem_get_info);
+EXPORT_SYMBOL(connfem_epaelna_get_flags);
+
+int connfem_epaelna_laa_get_pin_info(
+		struct connfem_epaelna_laa_pin_info *laa_pin_info)
+{
+	int ret = 0;
+
+	if (!laa_pin_info) {
+		ret = -EFAULT;
+		pr_info("[WARN] %s, laa_pin_info is NULL", __func__);
+	} else {
+		ret = _connfem_epaelna_laa_get_pin_info(laa_pin_info);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(connfem_epaelna_laa_get_pin_info);

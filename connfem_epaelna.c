@@ -48,6 +48,8 @@ void connfem_epaelna_init(struct platform_device *pdev)
 #if (CONNFEM_DBG == 1)
 	pr_info("total_info.flags_wifi.open_loop: %d",
 			total_info.flags_wifi.open_loop);
+	pr_info("total_info.flags_wifi.laa: %d",
+			total_info.flags_wifi.laa);
 	pr_info("total_info.flags_bt.bypass: %d",
 			total_info.flags_bt.bypass);
 	pr_info("total_info.flags_bt.epa_elna: %d",
@@ -72,23 +74,117 @@ bool connfem_is_epaelna_available(void)
 
 int _connfem_epaelna_get_fem_info(struct connfem_epaelna_fem_info *fem_info)
 {
-	int ret = 0;
-	int idx = 0;
-	int size = 0;
+	int idx;
 
+	memcpy(fem_info, &total_info.fem_info,
+		sizeof(struct connfem_epaelna_fem_info));
+
+	pr_info("GetFemInfo, id:0x%08x", fem_info->id);
 	for (idx = 0; idx < CONNFEM_PORT_NUM; idx++) {
-		fem_info->part[idx].pid = total_info.fem_info.part[idx].pid;
-		fem_info->part[idx].vid = total_info.fem_info.part[idx].vid;
-		size = sizeof(total_info.fem_info.part_name[idx]);
-		pr_info("%s size = %d", __func__, size);
+		pr_info("GetFemInfo, [%d]vid:0x%02x,pid:0x%2x,name:'%s'",
+			idx,
+			fem_info->part[idx].vid,
+			fem_info->part[idx].pid,
+			fem_info->part_name[idx]);
+	}
 
-		if (size > CONNFEM_PART_NAME_SIZE-1)
-			size = CONNFEM_PART_NAME_SIZE-1;
+	return 0;
+}
 
-		strncpy(fem_info->part_name[idx],
-				total_info.fem_info.part_name[idx], size);
-		fem_info->part_name[idx][size] = 0;
+int _connfem_epaelna_get_pin_info(struct connfem_epaelna_pin_info *pin_info)
+{
+	int idx;
+
+	memcpy(pin_info, &total_info.pin_info,
+		sizeof(struct connfem_epaelna_pin_info));
+
+	pr_info("GetPinInfo, count:%d", pin_info->count);
+	for (idx = 0; idx < pin_info->count; idx++) {
+		pr_info("GetPinInfo, [%d]antsel:%d,fem:0x%02x,polarity:%d",
+			idx,
+			pin_info->pin[idx].antsel,
+			pin_info->pin[idx].fem,
+			pin_info->pin[idx].polarity);
+	}
+
+	return 0;
+}
+
+int _connfem_epaelna_get_flags_wifi(struct connfem_epaelna_flags_wifi *flags)
+{
+	memcpy(flags, &total_info.flags_wifi,
+		sizeof(struct connfem_epaelna_flags_wifi));
+	pr_info("GetFlagsWifi, open_loop:%d", flags->open_loop);
+	return 0;
+}
+
+int _connfem_epaelna_get_flags_bt(struct connfem_epaelna_flags_bt *flags)
+{
+	memcpy(flags, &total_info.flags_bt,
+		sizeof(struct connfem_epaelna_flags_bt));
+	pr_info("GetFlagsBt, bypass  :%d", flags->bypass);
+	pr_info("GetFlagsBt, epa_elna:%d", flags->epa_elna);
+	pr_info("GetFlagsBt, epa     :%d", flags->epa);
+	pr_info("GetFlagsBt, elna    :%d", flags->elna);
+	return 0;
+}
+
+int get_flag_names_stat_from_total_info(
+		struct connfem_ioctl_get_flag_names_stat *stat)
+{
+	int ret = 0;
+
+	if (stat->subsys == CONNFEM_SUBSYS_WIFI &&
+		total_info.wf_flag_names_cont) {
+		stat->cnt = total_info.wf_flag_names_cont->cnt;
+		stat->entry_sz = total_info.wf_flag_names_cont->entry_sz;
+
+	} else if (stat->subsys == CONNFEM_SUBSYS_BT &&
+				total_info.bt_flag_names_cont) {
+		stat->cnt = total_info.bt_flag_names_cont->cnt;
+		stat->entry_sz = total_info.bt_flag_names_cont->entry_sz;
+
+	} else {
+		pr_info("[WARN] IOC_FUNC_GET_FLAG_NAMES_STAT, invalid subsys:%d",
+				stat->subsys);
+		stat->cnt = 0;
+		stat->entry_sz = 0;
+		ret = -EINVAL;
 	}
 
 	return ret;
+}
+
+struct connfem_container *get_container(enum connfem_subsys subsys)
+{
+	struct connfem_container *container = NULL;
+
+	if (subsys == CONNFEM_SUBSYS_WIFI)
+		container = total_info.wf_flag_names_cont;
+	else if (subsys == CONNFEM_SUBSYS_BT)
+		container = total_info.bt_flag_names_cont;
+	else
+		pr_info("[WARN] %s, invalid subsys:%d", __func__, subsys);
+
+	return container;
+}
+
+int _connfem_epaelna_laa_get_pin_info(
+		struct connfem_epaelna_laa_pin_info *laa_pin_info)
+{
+	int idx;
+
+	memcpy(laa_pin_info, &total_info.laa_pin_info,
+		sizeof(struct connfem_epaelna_laa_pin_info));
+
+	pr_info("GetLAAPinInfo, count:%d", laa_pin_info->count);
+	for (idx = 0; idx < laa_pin_info->count; idx++) {
+		pr_info("GetLAAPinInfo, [%d]gpio:%d,md_mode:%d,wf_mode:%d",
+			idx,
+			laa_pin_info->pin[idx].gpio,
+			laa_pin_info->pin[idx].md_mode,
+			laa_pin_info->pin[idx].wf_mode);
+	}
+
+	return 0;
 }
