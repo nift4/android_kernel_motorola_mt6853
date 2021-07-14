@@ -3,80 +3,76 @@
  * Copyright (c) 2019 MediaTek Inc.
  */
 
+#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/device.h>
-#include <linux/platform_device.h>
-#include <linux/cdev.h>
+#include <linux/errno.h>
+#include <linux/of_platform.h>
 #include <linux/of_device.h>
+#include <linux/cdev.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
-#include "connfem_internal.h"
+#include "connfem.h"
+
+#if (CONNFEM_TEST_ENABLED == 1)
+#include "connfem_test.h"
+#endif
 
 /*******************************************************************************
- *								M A C R O S
+ *				M A C R O S
  ******************************************************************************/
 #define CONNFEM_DRIVER_NAME "connfem"
 #define CONNFEM_DEV_NUM 1
 
 /*******************************************************************************
- *							D A T A   T Y P E S
+ *			    D A T A   T Y P E S
  ******************************************************************************/
-struct connfem_plat_data {
-	unsigned int id;
-};
-
 struct connfem_cdev_context {
 	dev_t devId;
 	struct class *class;
 	struct device *chrdev;
 	struct cdev cdev;
-	struct platform_device *device;
+	struct connfem_context *cfm;
 };
 
 /*******************************************************************************
- *				  F U N C T I O N   D E C L A R A T I O N S
+ *		    F U N C T I O N   D E C L A R A T I O N S
  ******************************************************************************/
 static int connfem_plat_probe(struct platform_device *pdev);
 static int connfem_plat_remove(struct platform_device *pdev);
 
-static int connfem_dev_open(struct inode *inode, struct file *file);
-static int connfem_dev_close(struct inode *inode, struct file *file);
-static ssize_t connfem_dev_read(struct file *filp, char __user *buf,
-						size_t count, loff_t *f_pos);
-static ssize_t connfem_dev_write(struct file *filp, const char __user *buf,
-						size_t count, loff_t *f_pos);
 static long connfem_dev_unlocked_ioctl(struct file *filp, unsigned int cmd,
-							unsigned long arg);
+				       unsigned long arg);
 #ifdef CONFIG_COMPAT
 static long connfem_dev_compat_ioctl(struct file *filp, unsigned int cmd,
-							unsigned long arg);
+				     unsigned long arg);
 #endif
 
 /*******************************************************************************
- *						   P U B L I C   D A T A
+ *			    P U B L I C   D A T A
  ******************************************************************************/
+struct connfem_context *connfem_ctx;
 
 /*******************************************************************************
- *						  P R I V A T E   D A T A
+ *			   P R I V A T E   D A T A
  ******************************************************************************/
 /* Platform Device */
 #ifdef CONFIG_OF
 
-struct connfem_plat_data connfem_plat_mt6893 = {
+struct connfem_context connfem_ctx_mt6893 = {
 	.id = 0x6893
 };
-struct connfem_plat_data connfem_plat_mt6983 = {
+struct connfem_context connfem_ctx_mt6983 = {
 	.id = 0x6983
 };
 
 static const struct of_device_id connfem_of_ids[] = {
 	{
 		.compatible = "mediatek,mt6893-connfem",
-		.data = (void *)&connfem_plat_mt6893
+		.data = (void *)&connfem_ctx_mt6893
 	},
 	{
 		.compatible = "mediatek,mt6983-connfem",
-		.data = (void *)&connfem_plat_mt6983
+		.data = (void *)&connfem_ctx_mt6983
 	},
 	{}
 };
@@ -99,10 +95,6 @@ static int connfem_major;
 static struct connfem_cdev_context connfem_cdev_ctx;
 
 static const struct file_operations connfem_dev_fops = {
-	.open = connfem_dev_open,
-	.release = connfem_dev_close,
-	.read = connfem_dev_read,
-	.write = connfem_dev_write,
 	.unlocked_ioctl = connfem_dev_unlocked_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = connfem_dev_compat_ioctl,
@@ -110,257 +102,345 @@ static const struct file_operations connfem_dev_fops = {
 };
 
 /*******************************************************************************
- *							 F U N C T I O N S
+ *			      F U N C T I O N S
  ******************************************************************************/
-static int connfem_dev_open(struct inode *inode, struct file *file)
+bool __weak connfem_is_internal(void)
 {
-	pr_info("%s", __func__);
-	return 0;
+	return false;
 }
 
-static int connfem_dev_close(struct inode *inode, struct file *file)
+void cfm_context_free(struct connfem_context *cfm)
 {
-	pr_info("%s", __func__);
-	return 0;
+	if (!cfm)
+		return;
+
+	cfm_dt_free(&cfm->dt);
+	cfm_epaelna_config_free(&cfm->epaelna, true);
 }
 
-static ssize_t connfem_dev_read(struct file *filp, char __user *buf,
-						size_t count, loff_t *f_pos)
+static int cfm_ioc_is_available_hdlr(unsigned long usr_arg)
 {
-	pr_info("%s", __func__);
-	return 0;
-}
+	struct cfm_ioc_is_available data;
 
-static ssize_t connfem_dev_write(struct file *filp, const char __user *buf,
-						size_t count, loff_t *f_pos)
-{
-	pr_info("%s", __func__);
-	return -EOPNOTSUPP;
-}
-
-static int connfem_ioctl_flag_names_to_user(uint64_t user_container,
-	struct connfem_container *flags, unsigned int user_cnt,
-	unsigned int user_entry_sz)
-{
-	int err = 0;
-	struct connfem_container empty;
-
-	if (!flags) {
-		empty.cnt = 0;
-		empty.entry_sz = 0;
-		err = copy_to_user((void __user *)user_container,
-					&empty,
-					sizeof(struct connfem_container));
-		return (err < 0 ? err : 0);
+	if (!usr_arg) {
+		pr_info("%s, invalid parameter", __func__);
+		return -EINVAL;
 	}
 
-	if (user_cnt < flags->cnt || user_entry_sz < flags->entry_sz) {
-		pr_info("insufficient flag names container space (%d*%d bytes) < (%d*%d bytes)",
-				user_cnt, user_entry_sz,
-				flags->cnt, flags->entry_sz);
+	if (copy_from_user(&data, (void *)usr_arg, sizeof(data)) != 0) {
+		pr_info("%s, copy_from_user failed", __func__);
+		return -EINVAL;
+	}
+
+	data.is_available = connfem_is_available(data.fem_type);
+	pr_info("%s, type:%d, return %d",
+		__func__, data.fem_type, data.is_available);
+
+	if (copy_to_user((void *)usr_arg, &data, sizeof(data)) != 0) {
+		pr_info("%s, copy_to_user failed", __func__);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int cfm_ioc_epa_fn_stat_hdlr(unsigned long usr_arg)
+{
+	int err = 0;
+	struct cfm_ioc_epa_fn_stat data;
+	struct cfm_container *names = NULL;
+
+	if (!usr_arg) {
+		pr_info("%s, invalid parameter", __func__);
+		return -EINVAL;
+	}
+
+	if (copy_from_user(&data, (void *)usr_arg, sizeof(data)) != 0) {
+		pr_info("%s, copy_from_user failed", __func__);
+		return -EINVAL;
+	}
+
+	data.cnt = 0;
+	data.entry_sz = 0;
+
+	if (data.subsys != CONNFEM_SUBSYS_WIFI &&
+	    data.subsys != CONNFEM_SUBSYS_BT) {
+		pr_info("%s, unsupported subsys %d", __func__, data.subsys);
+		err = -EINVAL;
+		goto fn_stat_done;
+	}
+
+	if (!connfem_ctx) {
+		pr_info("[WARN] %s, %d '%s', No ConnFem context",
+			__func__, data.subsys, cfm_subsys_name[data.subsys]);
+		err = -EOPNOTSUPP;
+		goto fn_stat_done;
+	}
+
+	names = connfem_ctx->epaelna.flags_cfg[data.subsys].names;
+	if (!names) {
+		pr_info("%s, %d '%s', no flags",
+			__func__,
+			data.subsys,
+			cfm_subsys_name[data.subsys]);
+	} else {
+		data.cnt = names->cnt;
+		data.entry_sz = names->entry_sz;
+	}
+
+	pr_info("%s, %d '%s', return cnt:%d, entry_sz:%d",
+		__func__, data.subsys, cfm_subsys_name[data.subsys],
+		data.cnt, data.entry_sz);
+
+fn_stat_done:
+	if (copy_to_user((void *)usr_arg, &data, sizeof(data)) != 0) {
+		pr_info("%s, copy_to_user failed", __func__);
+		return -EINVAL;
+	}
+
+	return err;
+}
+
+static int cfm_ioc_epa_fn_empty(uint64_t usr_names)
+{
+	struct cfm_container empty;
+
+	empty.cnt = 0;
+	empty.entry_sz = 0;
+
+	if (copy_to_user((void *)usr_names, &empty, sizeof(empty)) != 0) {
+		pr_info("%s, copy_to_user failed", __func__);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int cfm_ioc_epa_fn_trans(struct cfm_container *names,
+				unsigned int usr_cnt,
+				unsigned int usr_entry_sz,
+				uint64_t usr_names)
+{
+	unsigned int sz;
+
+	if (!names) {
+		pr_info("%s, no flags, set container size to 0", __func__);
+		return cfm_ioc_epa_fn_empty(usr_names);
+	}
+
+	if (usr_cnt < names->cnt || usr_entry_sz < names->entry_sz) {
+		pr_info("%s, not enough space, user(%d*%d) < need(%d*%d)",
+			__func__,
+			usr_cnt, usr_entry_sz,
+			names->cnt, names->entry_sz);
 		return -ENOMEM;
 	}
 
-	err = copy_to_user((void __user *)user_container, flags,
-		sizeof(struct connfem_container) +
-		(flags->cnt * flags->entry_sz));
-	return (err < 0 ? err : 0);
+	sz = sizeof(struct cfm_container) + (names->cnt * names->entry_sz);
+	if (copy_to_user((void *)usr_names, names, sz) != 0) {
+		pr_info("%s, copy_to_user failed #2", __func__);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int cfm_ioc_epa_fn_hdlr(unsigned long usr_arg)
+{
+	int err = 0;
+
+	struct cfm_ioc_epa_fn data;
+	struct cfm_container names;
+	struct cfm_container *subsys_names;
+
+	if (!usr_arg) {
+		pr_info("%s, invalid parameter", __func__);
+		return -EINVAL;
+	}
+
+	err = copy_from_user(&data, (void *)usr_arg, sizeof(data));
+	if (err != 0) {
+		pr_info("%s, copy_from_user failed", __func__);
+		return -EINVAL;
+	}
+
+	if (!data.names) {
+		pr_info("%s, invalid parameter, names is NULL", __func__);
+		return -EINVAL;
+	}
+
+	if (copy_from_user(&names, (void *)data.names,
+			   sizeof(struct cfm_container)) != 0) {
+		pr_info("%s, copy_from_user failed", __func__);
+		return -EINVAL;
+	}
+
+	if (data.subsys != CONNFEM_SUBSYS_WIFI &&
+	    data.subsys != CONNFEM_SUBSYS_BT) {
+		pr_info("%s, unsupported subsys %d", __func__, data.subsys);
+		cfm_ioc_epa_fn_empty(data.names);
+		return -EINVAL;
+	}
+
+	if (!connfem_ctx) {
+		pr_info("[WARN] %s, %d '%s', No ConnFem context",
+			__func__, data.subsys, cfm_subsys_name[data.subsys]);
+		return -EOPNOTSUPP;
+	}
+
+	pr_info("%s, %d '%s'",
+		__func__, data.subsys, cfm_subsys_name[data.subsys]);
+
+	subsys_names = connfem_ctx->epaelna.flags_cfg[data.subsys].names;
+	return cfm_ioc_epa_fn_trans(subsys_names,
+				    names.cnt,
+				    names.entry_sz,
+				    data.names);
+}
+
+static int cfm_ioc_epa_info_hdlr(unsigned long usr_arg)
+{
+	int err;
+	struct connfem_epaelna_fem_info fem_info;
+
+	if (!usr_arg) {
+		pr_info("%s, invalid parameter", __func__);
+		return -EINVAL;
+	}
+
+	err = connfem_epaelna_get_fem_info(&fem_info);
+	if (err < 0) {
+		pr_info("%s, retrieve FEM info failed", __func__);
+		return err;
+	}
+
+	if (copy_to_user((void *)usr_arg, &fem_info, sizeof(fem_info)) != 0) {
+		pr_info("%s, copy_to_user failed", __func__);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static long connfem_dev_unlocked_ioctl(struct file *filp, unsigned int cmd,
-							unsigned long arg)
+				       unsigned long arg)
 {
-	int ret = 0;
-	struct connfem_ior_is_available_para para;
-	struct connfem_epaelna_fem_info fem_info;
-	int err;
-	struct connfem_container names_cont;
-	struct connfem_ioctl_get_flag_names get_flag_names;
-	struct connfem_ioctl_get_flag_names_stat get_flag_names_stat;
+	int err = 0;
 
 	switch (cmd) {
-	case CONNFEM_IOR_IS_AVAILABLE:
-		pr_info("CONNFEM_IOR_IS_AVAILABLE fem_type: %d, subsys: %d",
-				para.fem_type, para.subsys);
-		if (copy_from_user(&para,
-				(struct connfem_ior_is_available_para *)arg,
-				sizeof(struct connfem_ior_is_available_para))) {
-			pr_info("[WARN] copy_from_user fail");
-			ret = -EFAULT;
-			break;
-		}
-		para.is_available = connfem_is_available(para.fem_type);
-		if (copy_to_user((void *)arg, &para,
-			sizeof(struct connfem_ior_is_available_para))) {
-			ret = -EFAULT;
-		}
-
-		break;
-	case IOC_FUNC_GET_FLAG_NAMES_STAT:
-		if (arg == 0) {
-			err = -EINVAL;
-			pr_info("IOC_FUNC_GET_FLAG_NAMES_STAT, invalid parameter");
-			break;
-		}
-
-		err = copy_from_user(&get_flag_names_stat, (void *)arg,
-				sizeof(
-				struct connfem_ioctl_get_flag_names_stat));
-		if (err < 0) {
-			pr_info("IOC_FUNC_GET_FLAG_NAMES_STAT, failed to copy from user: %d",
-					err);
-			break;
-		}
-		err = 0;
-
-		get_flag_names_stat_from_total_info(&get_flag_names_stat);
-
-		err = copy_to_user((void *)arg, &get_flag_names_stat,
-			sizeof(struct connfem_ioctl_get_flag_names_stat));
-		pr_info("IOC_FUNC_GET_FLAG_NAMES_STAT, subsys:%d, cnt:%d, entry_sz:%d, err:%d",
-				get_flag_names_stat.subsys,
-				get_flag_names_stat.cnt,
-				get_flag_names_stat.entry_sz, err);
-		err = (err < 0 ? err : 0);
+	case CFM_IOC_IS_AVAILABLE:
+		err = cfm_ioc_is_available_hdlr(arg);
 		break;
 
-	case IOC_FUNC_GET_FLAG_NAMES:
-		if (arg == 0) {
-			err = -EINVAL;
-			pr_info("IOC_FUNC_GET_FLAG_NAMES, invalid parameter");
-			break;
-		}
-
-		err = copy_from_user(&get_flag_names, (void *)arg,
-				sizeof(struct connfem_ioctl_get_flag_names));
-		if (err < 0) {
-			pr_info("IOC_FUNC_GET_FLAG_NAMES, failed to copy parameter from user: %d",
-					err);
-			break;
-		}
-		err = 0;
-
-		if (!get_flag_names.names) {
-			err = -EINVAL;
-			break;
-		}
-
-		err = copy_from_user(&names_cont,
-				 (const void __user *)get_flag_names.names,
-				 sizeof(struct connfem_container));
-		if (err < 0) {
-			pr_info("IOC_FUNC_GET_FLAG_NAMES, failed to copy names container from user: %d",
-					err);
-			break;
-		}
-		err = 0;
-
-		pr_info("IOC_FUNC_GET_FLAG_NAMES,arg:%lu,get_flag_names{subsys:%d,names:%lu,sizeof:%u}",
-				arg, get_flag_names.subsys,
-				(unsigned long)get_flag_names.names,
-				(unsigned int)sizeof(
-				struct connfem_ioctl_get_flag_names));
-		pr_info("IOC_FUNC_GET_FLAG_NAMES,names{cnt:%u,entry_sz:%u,sizeof:%u}",
-			names_cont.cnt,
-			names_cont.entry_sz,
-			(unsigned int)sizeof(struct connfem_container)
-		);
-
-		if (get_flag_names.subsys == CONNFEM_SUBSYS_WIFI) {
-			err = connfem_ioctl_flag_names_to_user(
-					get_flag_names.names,
-					get_container(CONNFEM_SUBSYS_WIFI),
-					names_cont.cnt, names_cont.entry_sz);
-			pr_info("IOC_FUNC_GET_FLAG_NAMES, copy %d Wifi flag name entries to user space, err:%d",
-					names_cont.cnt, err);
-
-		} else if (get_flag_names.subsys == CONNFEM_SUBSYS_BT) {
-			err = connfem_ioctl_flag_names_to_user(
-					get_flag_names.names,
-					get_container(CONNFEM_SUBSYS_BT),
-					names_cont.cnt, names_cont.entry_sz);
-			pr_info("IOC_FUNC_GET_FLAG_NAMES, copy %d BT flag name entries to user space, err:%d",
-					names_cont.cnt, err);
-
-		} else {
-			pr_info("IOC_FUNC_GET_FLAG_NAMES, invalid subsys:%d",
-					get_flag_names.subsys);
-			err = -EINVAL;
-		}
+	case CFM_IOC_EPA_FN_STAT:
+		err = cfm_ioc_epa_fn_stat_hdlr(arg);
 		break;
-	case IOC_FUNC_GET_FEM_INFO:
-		if (arg == 0) {
-			err = -EINVAL;
-			pr_info("IOC_FUNC_GET_FLAG_NAMES_STAT, invalid parameter");
-			break;
-		}
 
-		err = copy_from_user(&fem_info, (void *)arg,
-					 sizeof(
-					 struct connfem_epaelna_fem_info));
-		if (err < 0) {
-			pr_info("IOC_FUNC_GET_FEM_INFO, failed to copy from user: %d",
-					err);
-			break;
-		}
-
-		err = connfem_epaelna_get_fem_info(&fem_info);
-		if (err < 0) {
-			pr_info("IOC_FUNC_GET_FEM_INFO, failed to get fem info: %d",
-					err);
-			break;
-		}
-
-		if (copy_to_user((void *)arg, &fem_info,
-			sizeof(struct connfem_epaelna_fem_info))) {
-			pr_info("IOC_FUNC_GET_FEM_INFO, failed to copy to user: %d",
-					err);
-			ret = -EFAULT;
-			break;
-		}
-
+	case CFM_IOC_EPA_FN:
+		err = cfm_ioc_epa_fn_hdlr(arg);
 		break;
+
+	case CFM_IOC_EPA_INFO:
+		err = cfm_ioc_epa_info_hdlr(arg);
+		break;
+
 	default:
-		pr_info("%s, unknown cmd: %d", __func__, cmd);
+		pr_info("Unsupported ioctl cmd 0x%x", cmd);
+		err = -EOPNOTSUPP;
 		break;
-	}
+	};
 
-	return ret;
+	return err;
 }
 
 #ifdef CONFIG_COMPAT
 static long connfem_dev_compat_ioctl(struct file *filp, unsigned int cmd,
 							unsigned long arg)
 {
-	pr_info("cmd:0x%x, arg:0x%lx, redirecting to connfem_dev_unlocked_ioctl...",
-			cmd, arg);
+	pr_info("cmd:0x%x, arg:0x%lx, redirecting to unlocked ioctl", cmd, arg);
 	return connfem_dev_unlocked_ioctl(filp, cmd, arg);
 }
 #endif
 
 static int connfem_plat_probe(struct platform_device *pdev)
 {
-	struct device_node *node;
+	struct connfem_context *cfm = NULL;
+	int err = 0;
 
-	pr_info("%s", __func__);
+	cfm = (struct connfem_context *)of_device_get_match_data(&pdev->dev);
+	if (!cfm) {
+		pr_info("Probe, missing platform device data for '%s'",
+			pdev->name);
+		err = -EOPNOTSUPP;
+		goto probe_end;
+	}
 
-	connfem_cdev_ctx.device = pdev;
-	node = connfem_cdev_ctx.device->dev.of_node;
+	cfm->pdev = pdev;
+	pr_info("Probed '%s': 0x%x", pdev->name, cfm->id);
 
-	connfem_epaelna_init(pdev);
+	err = cfm_dt_parse(cfm);
+	if (err < 0) {
+		pr_info("%s device tree error %d",
+			pdev->name, err);
 
-	return 0;
+		/* We dont goto probe_end because there could be some critical
+		 * information being parsed despite an error occurred.
+		 *	ex.
+		 *	- cfm->dt.hwid
+		 *	- cfm->epaelna.available
+		 *	- cfm->epaelna.fem_info
+		 *	- flags, parts, ...
+		 * These should perhaps be moved to a separate "persistent"
+		 * section in the connfem_context structure.
+		 *
+		 *   // goto probe_end;
+		 */
+	}
+
+	if (connfem_ctx) {
+		pr_info("Failed to register '%s' context, '%s' exists",
+			pdev->name,
+			connfem_ctx->pdev->name);
+		cfm_context_free(cfm);
+		err = -EINVAL;
+		goto probe_end;
+	}
+
+	connfem_ctx = cfm;
+	connfem_cdev_ctx.cfm = cfm;
+	pr_info("ConnFem context '%s' registered, linked to cdev", pdev->name);
+
+probe_end:
+#if (CONNFEM_TEST_ENABLED == 1)
+	connfem_test();
+#endif
+
+	return err;
 }
 
 static int connfem_plat_remove(struct platform_device *pdev)
 {
-	pr_info("%s", __func__);
+	struct connfem_context *cfm = NULL;
+
+	cfm = (struct connfem_context *)of_device_get_match_data(&pdev->dev);
+	if (!cfm) {
+		pr_info("Remove, missing platform device data for '%s'",
+			pdev->name);
+		return -EOPNOTSUPP;
+	}
+
+	if (connfem_ctx == cfm)
+		connfem_ctx = NULL;
+
+	cfm_context_free(cfm);
+
 	return 0;
 }
 
 static int __init connfem_mod_init(void)
 {
 	int ret = 0;
+
+	pr_info("Internal load: %d", connfem_is_internal());
 
 	/* Init global context */
 	memset(&connfem_cdev_ctx, 0, sizeof(struct connfem_cdev_context));

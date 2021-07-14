@@ -3,509 +3,936 @@
  * Copyright (c) 2019 MediaTek Inc.
  */
 
-#include <dt-bindings/pinctrl/mt65xx.h>
-#include <linux/gpio.h>
-#include <linux/of.h>
+#include <linux/kernel.h>
+#include <linux/of_platform.h>
+#include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
-#include "connfem_internal.h"
+#include "connfem.h"
 
 /*******************************************************************************
- *								M A C R O S
+ *				M A C R O S
  ******************************************************************************/
-/*	Align with firmware FemNo coding
- *	0xAABCDDEE:
- *		AA: reserved
- *		 B:	2G VID
- *		 C:	5G VID
- *		DD:	2G PID
- *		EE:	5G VID
- */
-
-#define VID_2G(n) ((n) << 20)
-#define VID_5G(n) ((n) << 16)
-#define PID_2G(n) ((n) << 8)
-#define PID_5G(n) ((n) << 0)
-
-#define COMPOSED_STATE_NAME_SIZE (CONNFEM_PART_NAME_SIZE * \
-				CONNFEM_PORT_NUM + (CONNFEM_PORT_NUM - 1) + 1)
-#define FEM_MAPPING_SIZE 3
-#define LAA_PINMUX_SIZE 2
-#define GPIO_NODE_NAME "gpio-hwid"
-#define EPA_ELNA_NAME "epa_elna"
-#define EPA_ELNA_MTK_NAME "epa_elna_mtk"
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "["KBUILD_MODNAME"][DT]" fmt
 
 /*******************************************************************************
- *							D A T A   T Y P E S
+ *			    D A T A   T Y P E S
  ******************************************************************************/
 
 
 /*******************************************************************************
- *				  F U N C T I O N   D E C L A R A T I O N S
+ *		    F U N C T I O N   D E C L A R A T I O N S
+ ******************************************************************************/
+static int cfm_dt_epaelna_parse(struct device_node *np,
+				struct connfem_context *cfm);
+static void cfm_dt_epaelna_free(struct cfm_dt_epaelna_context *dt,
+				bool free_all);
+
+static int cfm_dt_epaelna_hwid_parse(struct device_node *np,
+				     unsigned int *hwid);
+
+static int cfm_dt_epaelna_parts_parse(
+		struct device_node *np,
+		unsigned int hwid,
+		struct device_node **parts_np);
+
+static int cfm_dt_epaelna_pctl_pinmux_apply(
+		struct platform_device *pdev,
+		struct cfm_dt_epaelna_pctl_context *pctl);
+
+static int cfm_dt_epaelna_pctl_state_parse(
+		struct device_node *dn,
+		struct connfem_epaelna_fem_info *fem_info,
+		struct cfm_dt_epaelna_pctl_state_context *pstate);
+
+static void cfm_dt_epaelna_pctl_free(struct cfm_dt_epaelna_pctl_context *pctl);
+
+static void cfm_dt_epaelna_pctl_state_free(
+		struct cfm_dt_epaelna_pctl_state_context *pstate);
+
+static int cfm_dt_epaelna_pctl_state_find(
+		const struct device_node *dn,
+		char *state_name,
+		unsigned int *state_index);
+
+static bool cfm_dt_epaelna_pctl_exists(
+		struct cfm_dt_epaelna_pctl_context *pctl);
+
+static int cfm_dt_epaelna_pctl_walk(
+		struct cfm_dt_epaelna_pctl_context *pctl,
+		struct cfm_epaelna_pin_config *result);
+
+static int cfm_dt_epaelna_pctl_data_parse(
+		struct device_node *np,
+		struct cfm_dt_epaelna_pctl_data_context *pctl_data);
+
+static int cfm_dt_epaelna_pctl_data_mapping_parse(
+		struct device_node *np,
+		unsigned int *pin_cnt);
+
+static int cfm_dt_epaelna_pctl_data_laa_pinmux_parse(
+		struct device_node *np,
+		unsigned int *laa_cnt);
+
+static int cfm_dt_epaelna_flags_parse(
+		struct device_node *np,
+		unsigned int hwid,
+		struct cfm_dt_epaelna_flags_context *flags_out);
+
+static void cfm_dt_epaelna_flags_free(
+		struct cfm_dt_epaelna_flags_context *flags);
+
+/*******************************************************************************
+ *			    P U B L I C   D A T A
  ******************************************************************************/
 
 
 /*******************************************************************************
- *						   P U B L I C   D A T A
+ *			   P R I V A T E   D A T A
  ******************************************************************************/
 
-/*******************************************************************************
- *						  P R I V A T E   D A T A
- ******************************************************************************/
 
 /*******************************************************************************
- *							 F U N C T I O N S
+ *			      F U N C T I O N S
  ******************************************************************************/
-bool __weak connfem_is_internal(void)
+int cfm_dt_parse(struct connfem_context *cfm)
 {
-	return false;
+	int err = 0;
+	struct device_node *dn = cfm->pdev->dev.of_node;
+	struct device_node *np = NULL;
+
+	if (connfem_is_internal()) {
+		np = of_get_child_by_name(dn, CFM_DT_NODE_EPAELNA_MTK);
+		if (!np) {
+			pr_info("Missing '%s', trying '%s'",
+				CFM_DT_NODE_EPAELNA_MTK,
+				CFM_DT_NODE_EPAELNA);
+			np = of_get_child_by_name(dn, CFM_DT_NODE_EPAELNA);
+		}
+	} else {
+		np = of_get_child_by_name(dn, CFM_DT_NODE_EPAELNA);
+	}
+
+	if (np) {
+		pr_info("Selecting '%s'", np->name);
+		err = cfm_dt_epaelna_parse(np, cfm);
+		of_node_put(np);
+		np = NULL;
+	} else {
+		pr_info("Missing '%s'", CFM_DT_NODE_EPAELNA);
+	}
+
+	return err;
+}
+
+void cfm_dt_free(struct cfm_dt_context *dt)
+{
+	cfm_dt_epaelna_free(&dt->epaelna, true);
+}
+
+static void cfm_dt_epaelna_free(struct cfm_dt_epaelna_context *dt,
+				bool free_all)
+{
+	int i;
+
+	if (!dt)
+		return;
+
+	/* PIN related info can always be freed without keeping */
+	cfm_dt_epaelna_pctl_free(&dt->pctl);
+
+	if (!free_all) {
+		memset(&dt->pctl, 0, sizeof(dt->pctl));
+		return;
+	}
+
+	/* In case we need to keep some critical information for later use,
+	 * the data related to "flags" and "parts" are especially important,
+	 * these should only be freed if "free_all" is specified.
+	 */
+	cfm_dt_epaelna_flags_free(&dt->flags);
+
+	for (i = 0; i < CONNFEM_PORT_NUM; i++) {
+		if (dt->parts_np[i]) {
+			of_node_put(dt->parts_np[i]);
+			dt->parts_np[i] = NULL;
+		}
+	}
+
+	memset(dt, 0, sizeof(*dt));
+}
+
+static void cfm_dt_epaelna_pctl_free(struct cfm_dt_epaelna_pctl_context *pctl)
+{
+	if (!pctl)
+		return;
+
+	cfm_dt_epaelna_pctl_state_free(&pctl->state);
+}
+
+static void cfm_dt_epaelna_pctl_state_free(
+		struct cfm_dt_epaelna_pctl_state_context *pstate)
+{
+	int i;
+
+	if (!pstate)
+		return;
+
+	if (pstate->np) {
+		for (i = 0; i < pstate->np_cnt; i++) {
+			if (pstate->np[i]) {
+				of_node_put(pstate->np[i]);
+				pstate->np[i] = NULL;
+			}
+		}
+		kfree(pstate->np);
+		pstate->np = NULL;
+	}
+
+	pstate->np_cnt = 0;
+}
+
+static void cfm_dt_epaelna_flags_free(
+		struct cfm_dt_epaelna_flags_context *flags)
+{
+	int i;
+
+	if (!flags)
+		return;
+
+	for (i = 0; i < CONNFEM_SUBSYS_NUM; i++) {
+		if (flags->np[i]) {
+			of_node_put(flags->np[i]);
+			flags->np[i] = NULL;
+		}
+	}
+}
+
+static int cfm_dt_epaelna_parse(struct device_node *np,
+				struct connfem_context *cfm)
+{
+	int err = 0;
+	struct device_node *dn = cfm->pdev->dev.of_node;
+	struct cfm_dt_epaelna_context *dt = &cfm->dt.epaelna;
+	struct cfm_epaelna_config *result = &cfm->epaelna;
+
+	/* Initialize */
+	memset(dt, 0, sizeof(*dt));
+	memset(result, 0, sizeof(*result));
+
+	/* HWID property is optional, but must be valid if it exists */
+	err = cfm_dt_epaelna_hwid_parse(np, &dt->hwid);
+	if (err == -ENOENT)
+		dt->hwid = 0;
+	else if (err < 0)
+		return -EINVAL;
+
+	/* Parse parts property */
+	err = cfm_dt_epaelna_parts_parse(np, dt->hwid, dt->parts_np);
+	if (err < 0) {
+		err = -EINVAL;
+		goto dt_epaelna_err;
+	}
+
+	/* Populate FEM info */
+	err = cfm_epaelna_feminfo_populate(dt, &result->fem_info);
+	if (err < 0) {
+		err = -EINVAL;
+		goto dt_epaelna_err;
+	}
+
+	/* Set available */
+	if (result->fem_info.id)
+		result->available = true;
+
+	/* Parse subsys flags nodes */
+	err = cfm_dt_epaelna_flags_parse(np, dt->hwid, &dt->flags);
+	if (err < 0) {
+		err = -EINVAL;
+		goto dt_epaelna_err;
+	}
+
+	/* Populate subsys flags */
+	err = cfm_epaelna_flags_populate(&dt->flags, result->flags_cfg);
+	if (err < 0) {
+		err = -EINVAL;
+		goto dt_epaelna_err;
+	}
+
+	/* Parse pinctrl state property */
+	err = cfm_dt_epaelna_pctl_state_parse(dn,
+					      &result->fem_info,
+					      &dt->pctl.state);
+	if (err < 0 && err != -ENOENT) {
+		err = -EINVAL;
+		goto dt_epaelna_err;
+	}
+
+	/* Walk through all pinctrl nodes to parse and populate */
+	if (cfm_dt_epaelna_pctl_exists(&dt->pctl)) {
+		err = cfm_dt_epaelna_pctl_walk(&dt->pctl, &result->pin_cfg);
+		if (err < 0) {
+			err = -EINVAL;
+			goto dt_epaelna_err;
+		}
+	} else {
+		pr_info("Skip ANTSEL pin info collection");
+	}
+
+	/* Apply PINMUX only if device tree successfully parsed */
+	if (cfm_dt_epaelna_pctl_exists(&dt->pctl)) {
+		err = cfm_dt_epaelna_pctl_pinmux_apply(cfm->pdev, &dt->pctl);
+		if (err < 0) {
+			err = -EINVAL;
+			goto dt_epaelna_err;
+		}
+	} else {
+		pr_info("Skip applying GPIO PINMUX");
+	}
+
+	return 0;
+
+dt_epaelna_err:
+	cfm_dt_epaelna_free(dt, false);
+	cfm_epaelna_config_free(result, false);
+
+	return err;
+}
+
+
+/**
+ * cfm_dt_epaelna_hwid_parse
+ *	Parses and retrieves type of hardware based on hwid property.
+ *
+ * Parameters
+ *	np	: Pointer to the node containing the 'hwid' property.
+ *	hwid	: Output parameter storing the final HW ID
+ *
+ * Return value
+ *	0	: Success, hwid will contain valid result
+ *	-ENOENT	: HW ID not defined in device tree, hwid will set to 0
+ *	-EINVAL : Failed to parse hwid property
+ *
+ */
+static int cfm_dt_epaelna_hwid_parse(struct device_node *np,
+				     unsigned int *hwid_out)
+{
+	int i, cnt, gpio_num;
+	unsigned int gpio_value;
+	unsigned int hwid = 0;
+
+	/* Get number of HWID GPIO PINs if the property exists */
+	cnt = of_gpio_named_count(np, CFM_DT_PROP_HWID);
+	if (cnt <= 0 && cnt != -ENOENT) {
+		pr_info("[WARN] Invalid '%s' property", CFM_DT_PROP_HWID);
+		return -EINVAL;
+	}
+
+	pr_info("Number of HWID GPIO PINs: %d",
+		(cnt == -ENOENT ? 0 : cnt));
+
+	if (cnt <= 0)
+		return -ENOENT;
+
+	/* Retrieve hardware ID based on GPIO PIN(s) value */
+	for (i = 0; i < cnt; i++) {
+		/* Retrieve GPIO PIN number */
+		gpio_num = of_get_named_gpio(np, CFM_DT_PROP_HWID, i);
+
+		/* Abort if it's not valid */
+		if (!gpio_is_valid(gpio_num)) {
+			pr_info("[WARN] Invalid '%s' property: idx(%d)err(%d)",
+				CFM_DT_PROP_HWID,
+				i, gpio_num);
+			hwid = 0;
+			return -EINVAL;
+		}
+
+		/* Read GPIO PIN */
+		gpio_value = gpio_get_value(gpio_num);
+		hwid |= ((gpio_value & 0x1) << i);
+		pr_info("%s[%d]: GPIO(%d)=%d, hwid(%u)",
+			CFM_DT_PROP_HWID, i,
+			gpio_num, gpio_value, hwid);
+	}
+
+	/* Update output parameter */
+	*hwid_out = hwid;
+
+	return 0;
 }
 
 /**
- * connfem_dt_parser_init - it is called when driver probe and it will parse
- * all information from device tree and save it to connfem_epaelna_total_info
+ * cfm_dt_epaelna_parts_parse
+ *	Locate the correct parts based on hwid, and collect parts nodes.
  *
- * @pdev: platform device is passed from probe function
- * @total_info: structure for saving device tree information
+ * Parameters
+ *	np	: Pointer to the node containing the 'parts' property.
+ *	hwid	: Indication on which parts group to be parsed
+ *		  Each parts group must contain CONNFEM_PORT_NUM of phandle
+ *	parts_np: struct device_node *parts_np[CONNFEM_PORT_NUM]
+ *		  for storing parts node pointers.
+ *
+ * Return value
+ *	0	: Success, part & name will contain valid result
+ *	-EINVAL : Error
+ *
  */
-void connfem_dt_parser_init(struct platform_device *pdev,
-				struct connfem_epaelna_total_info *total_info)
+static int cfm_dt_epaelna_parts_parse(
+		struct device_node *np,
+		unsigned int hwid,
+		struct device_node **parts_np_out)
 {
-	const struct device_node *devnode = pdev->dev.of_node;
-	struct device_node *epaelna_node = NULL;
-	int gpio_num = 0;
-	int gpio_count = 0;
-	int parts_selected = 0;
-	int idx, err = 0;
-	unsigned int value;
-	int parts_count = 0;
-	struct device_node *np = NULL;
-	int port_num = 0;
-	int pid = 0;
-	int vid = 0;
-	char composed_state_name[COMPOSED_STATE_NAME_SIZE];
-	bool internal_load = false;
-	bool device_tree_is_invalid = false;
-	struct connfem_epaelna_fem_info *fem_info = &total_info->fem_info;
-	int idx5;
-	struct pinctrl_state *pin_state = NULL;
-	struct pinctrl *pinctrl = NULL;
-	int idx4;
-	int idx2;
-	int cnt;
-	const char *str = NULL;
-	char prop_name[16];
-	struct connfem_epaelna_pin_info *pin_info = &total_info->pin_info;
-	struct device_node *pinctrl_elem_np = NULL;
-	int cnt2;
-	int idx3;
-	int err2, err3;
-	unsigned int value2, value3;
-	unsigned int gpio_value, gpio_value2, md_mode_value, wf_mode_value;
-	int cnt3;
-	struct connfem_epaelna_laa_pin_info *laa_p_info =
-			&total_info->laa_pin_info;
+	int err = 0;
+	int cnt, start, i;
+	struct device_node *parts_np[CONNFEM_PORT_NUM];
 
-	internal_load = connfem_is_internal();
-	pr_info("connfem_is_internal(): %d", internal_load);
-
-	if (internal_load) {
-		epaelna_node = of_get_child_by_name(devnode, EPA_ELNA_MTK_NAME);
-		pr_info("Using %s", EPA_ELNA_MTK_NAME);
-	} else {
-		epaelna_node = of_get_child_by_name(devnode, EPA_ELNA_NAME);
-		pr_info("Using %s", EPA_ELNA_NAME);
+	/* 'parts' property must exist */
+	cnt = of_property_count_u32_elems(np, CFM_DT_PROP_PARTS);
+	if (cnt <= 0) {
+		pr_info("[WARN] Missing '%s' property", CFM_DT_PROP_PARTS);
+		return -EINVAL;
 	}
 
-	/* Get GPIO value to determine which parts should be used */
-	gpio_count = of_gpio_named_count(epaelna_node, GPIO_NODE_NAME);
-	if (gpio_count <= 0) {
-		pr_info("failed to find %s: %d", GPIO_NODE_NAME, gpio_num);
-	} else {
-		for (idx = 0; idx < gpio_count; idx++) {
-			gpio_num = of_get_named_gpio(epaelna_node,
-							GPIO_NODE_NAME, idx);
-			if (gpio_is_valid(gpio_num)) {
-				err = devm_gpio_request(&pdev->dev, gpio_num,
-								GPIO_NODE_NAME);
-				if (err < 0) {
-					err = -EINVAL;
-					pr_info("[WARN] failed to request GPIO %d: index: %d, error: %d",
-						   gpio_num, idx, err);
-					break;
-				}
-				value = gpio_get_value(gpio_num);
-#if (CONNFEM_DBG == 1)
-				pr_info("%s PIN:%d, Value:%d",
-						GPIO_NODE_NAME, gpio_num,
-						value);
-				pr_info("before OR, parts_selected:%d, value:%d, idx: %d",
-						parts_selected, value, idx);
-#endif
-				parts_selected |= value << idx;
-#if (CONNFEM_DBG == 1)
-				pr_info("after OR, parts_selected: %d, value: %d, idx: %d",
-						parts_selected, value, idx);
-#endif
-			} else {
-				err = -EINVAL;
-				pr_info("[WARN] failed to find %s: index: %d, gpio: %d, err: %d",
-						GPIO_NODE_NAME, idx,
-						gpio_num, err);
-				break;
-			}
+	/* Ensure 'parts' property is valid */
+	if ((cnt % CONNFEM_PORT_NUM) != 0) {
+		pr_info("[WARN] %s has %d items, must be multiple of %d",
+			CFM_DT_PROP_PARTS,
+			cnt, CONNFEM_PORT_NUM);
+		return -EINVAL;
+	}
+
+	if (((hwid + 1) * CONNFEM_PORT_NUM) > cnt) {
+		pr_info("[WARN] %s has %dx%d items, need %dx%d for hwid %d",
+			CFM_DT_PROP_PARTS,
+			(cnt / 2), CONNFEM_PORT_NUM,
+			(hwid + 1), CONNFEM_PORT_NUM,
+			hwid);
+		return -EINVAL;
+	}
+
+	/* Collect node pointer to each of the required parts */
+	memset(parts_np, 0, sizeof(parts_np));
+	start = hwid * CONNFEM_PORT_NUM;
+	for (i = 0; i < CONNFEM_PORT_NUM; i++) {
+		parts_np[i] =
+			of_parse_phandle(np, CFM_DT_PROP_PARTS, start + i);
+
+		if (!parts_np[i]) {
+			pr_info("[WARN] %s[%d][%d]: Invalid node at index %d",
+				CFM_DT_PROP_PARTS,
+				hwid, i,
+				start + i);
+			err = -EINVAL;
+			break;
 		}
+
+		pr_info("Found %s[%d][%d]: %s",
+			CFM_DT_PROP_PARTS,
+			hwid, i,
+			parts_np[i]->name);
+	}
+
+	/* Update DT context if parsing completes */
+	if (!err) {
+		memcpy(parts_np_out, parts_np, sizeof(parts_np));
+		return 0;
+	}
+
+	/* Release parts node if error */
+	for (i = 0; i < CONNFEM_PORT_NUM; i++) {
+		if (parts_np[i])
+			of_node_put(parts_np[i]);
+	}
+
+	return err;
+}
+
+/**
+ * cfm_dt_epaelna_pctl_pinmux_apply
+ *	Apply pinctrl pinmux
+ *
+ * Parameters
+ *
+ * Return value
+ *	0	: Pinctrl pinmux successfully applied
+ *	-EINVAL : Error
+ *
+ */
+static int cfm_dt_epaelna_pctl_pinmux_apply(
+		struct platform_device *pdev,
+		struct cfm_dt_epaelna_pctl_context *pctl)
+{
+	struct pinctrl *pinctrl = NULL;
+	struct pinctrl_state *pin_state = NULL;
+	int err;
+
+	pinctrl = devm_pinctrl_get(&pdev->dev);
+	if (IS_ERR(pinctrl)) {
+		pr_info("Unable to get pinctrl: %ld", PTR_ERR(pinctrl));
+		return -EINVAL;
+	}
+
+	pin_state = pinctrl_lookup_state(pinctrl, pctl->state.name);
+	if (IS_ERR(pin_state)) {
+		pr_info("Unable to find state '%s': %ld",
+			pctl->state.name,
+			PTR_ERR(pin_state));
+
+		devm_pinctrl_put(pinctrl);
+		return -EINVAL;
+	}
+
+	err = pinctrl_select_state(pinctrl, pin_state);
+	if (err < 0) {
+		pr_info("Failed to apply pinctrl for state '%s', err %d",
+			pctl->state.name, err);
+		err = -EINVAL;
+	} else {
+		pr_info("'%s' pinmux successfully applied",
+			pctl->state.name);
+		err = 0;
+	}
+
+	devm_pinctrl_put(pinctrl);
+	return err;
+}
+
+/**
+ * cfm_dt_epaelna_pctl_state_parse
+ *	Collect pinctrl nodes associated to the FEM Info.
+ *
+ * Parameters
+ *	np	: Pointer to the node containing the 'pinctrl-names' property.
+ *
+ * Return value
+ *	0	: Success, part & name will contain valid result
+ *	-ENOENT : State could not be found
+ *	-EINVAL : Error
+ *
+ */
+static int cfm_dt_epaelna_pctl_state_parse(
+		struct device_node *dn,
+		struct connfem_epaelna_fem_info *fem_info,
+		struct cfm_dt_epaelna_pctl_state_context *pstate)
+{
+	int err = 0;
+	int i;
+
+	/* Locate pinctrl state index */
+	snprintf(pstate->name, sizeof(pstate->name),
+		 "%s_%s",
+		 fem_info->part_name[CONNFEM_PORT_WFG],
+		 fem_info->part_name[CONNFEM_PORT_WFA]);
+
+	err = cfm_dt_epaelna_pctl_state_find(dn,
+					     pstate->name,
+					     &pstate->index);
+	if (err < 0)
+		return err;	/* -ENOENT, -EINVAL */
+
+	/* Collect pinctrl nodes */
+	snprintf(pstate->prop_name, sizeof(pstate->prop_name),
+		 "%s%d",
+		 CFM_DT_PROP_PINCTRL_PREFIX, pstate->index);
+
+	err = of_property_count_u32_elems(dn, pstate->prop_name);
+	if (err <= 0) {
+		pr_info("[WARN] '%s' is at %d, invalid '%s' prop, err %d",
+			pstate->name,
+			pstate->index,
+			pstate->prop_name,
+			err);
+		return -EINVAL;
+	}
+	pstate->np_cnt = (unsigned int)err;
+
+	pr_info("Found pinctrl state '%s', prop '%s', with %d nodes",
+		pstate->name, pstate->prop_name, pstate->np_cnt);
+
+	pstate->np = kcalloc(pstate->np_cnt,
+			     sizeof(*(pstate->np)),
+			     GFP_KERNEL);
+
+	err = 0;
+	for (i = 0; i < pstate->np_cnt; i++) {
+		pstate->np[i] = of_parse_phandle(dn, pstate->prop_name, i);
+		if (!pstate->np[i]) {
+			pr_info("[WARN] Unable to get pinctrl node %s[%d]",
+				pstate->prop_name, i);
+			err = -EINVAL;
+			break;
+		}
+		/* pr_info("Collected [%d]'%s'", i, pstate->np[i]->name); */
+	}
+
+	/* Release the partially collected pinctrl nodes in case of error */
+	if (err < 0)
+		cfm_dt_epaelna_pctl_state_free(pstate);
+	return err;
+}
+
+/**
+ * cfm_dt_epaelna_pctl_state_find
+ *	Find the pinctrl state's index.
+ *
+ * Parameters
+ *	np	   : Pointer to the node containing 'pinctrl-names' prop.
+ *	state_name : Pinctrl state name to be located.
+ *	state_index: Output parameter storing the index found
+ *
+ * Return value
+ *	0	: Success, state_index will contain valid result
+ *	-ENOENT : State could not be found
+ *	-EINVAL : Error
+ *
+ */
+static int cfm_dt_epaelna_pctl_state_find(
+		const struct device_node *dn,
+		char *state_name,
+		unsigned int *state_index)
+{
+	struct property *p;
+	const char *name = NULL;
+	int i = 0;
+
+	of_property_for_each_string(dn, "pinctrl-names", p, name) {
+		if (strncmp(name, state_name,
+			    CFM_DT_PCTL_STATE_NAME_SIZE) == 0) {
+			break;
+		}
+		i++;
+	}
+
+	if (!name) {
+		pr_info("[WARN] pinctrl-names does not have '%s' state",
+			state_name);
+		return -ENOENT;
+	}
+
+	*state_index = i;
+	return 0;
+}
+
+/**
+ * cfm_dt_epaelna_pctl_exists
+ *	Returns true/false indicating if pinctrl nodes exist
+ *
+ * Parameters
+ *
+ * Return value
+ *
+ */
+static bool cfm_dt_epaelna_pctl_exists(
+		struct cfm_dt_epaelna_pctl_context *pctl)
+{
+	return pctl && (pctl->state.np_cnt > 0);
+}
+
+/**
+ * cfm_dt_epaelna_pctl_walk
+ *	Walk through pinctrl nodes and populate pin config result
+ *
+ * Parameters
+ *
+ * Return value
+ *	0	: Success, pin config output will be valid
+ *	-EINVAL : Error
+ *
+ */
+static int cfm_dt_epaelna_pctl_walk(
+		struct cfm_dt_epaelna_pctl_context *pctl,
+		struct cfm_epaelna_pin_config *result_out)
+{
+	int err = 0;
+	int i;
+	struct device_node *np;
+	struct cfm_dt_epaelna_pctl_data_context pctl_data;
+	struct cfm_epaelna_pin_config result;
+
+	memset(&result, 0, sizeof(result));
+
+	for (i = 0; i < pctl->state.np_cnt; i++) {
+		for_each_child_of_node(pctl->state.np[i], np) {
+			pr_info("Checking [%d]%s.%s",
+				i, pctl->state.np[i]->name, np->name);
+
+			/* Aligned with Kernel pinctrl's expectation on the
+			 * existence of 'pinmux' property, this check prevents
+			 * us from mis-collecting the PIN mapping and the real
+			 * pinmux setting.
+			 *
+			 * Kernel pinctrl in fact will log runtime error, and
+			 * our probe callback does not get called in this case.
+			 *
+			 * So we probably wont need this check, but leave it
+			 * there in case Kernel behaviour changes in future.
+			 *
+			 */
+			if (!of_get_property(np, CFM_DT_PROP_PINMUX, NULL)) {
+				pr_info("Missing '%s' property",
+					CFM_DT_PROP_PINMUX);
+				of_node_put(np);
+				continue;
+			}
+
+			err = cfm_dt_epaelna_pctl_data_parse(np, &pctl_data);
+			if (err < 0)
+				break;
+
+			/* As we're iterating through each of the pinctrl
+			 * nodes, the previous result has to be kept, and
+			 * new info should be appended instead.
+			 */
+			err = cfm_epaelna_pincfg_populate(&pctl_data, &result);
+			if (err < 0)
+				break;
+
+			of_node_put(np);
+		}
+		if (err < 0)
+			break;
 	}
 
 	if (err < 0) {
-		parts_selected = 0;
-		pr_info("Get GPIO value failed, set parts_selected to 0");
-	}
-
-	pr_info("parts_selected: %d", parts_selected);
-
-	parts_count = of_property_count_u32_elems(epaelna_node, "parts");
-	pr_info("number of parts: %d", parts_count);
-	if (parts_count <= 0) {
-		pr_info("[WARN] Missing FEM parts");
-		return;
-	}
-	if ((parts_selected + 1) * CONNFEM_PORT_NUM > parts_count) {
-		pr_info("[WARN] parts_selected(%d) + 1 * %d > parts_count(%d)",
-				parts_selected, CONNFEM_PORT_NUM, parts_count);
-		return;
-	}
-	if ((parts_count % CONNFEM_PORT_NUM) != 0) {
-		pr_info("[WARN] parts_count: %d must be multiple of CONNFEM_PORT_NUM: %d",
-				parts_count, CONNFEM_PORT_NUM);
-		return;
-	}
-
-	/* Parts */
-	idx = parts_selected * CONNFEM_PORT_NUM;
-	port_num = 0;
-	pr_info("parts_selected: %d, read parts from %d",
-			parts_selected, idx);
-	while ((np = of_parse_phandle(epaelna_node, "parts", idx)) &&
-			port_num < CONNFEM_PORT_NUM &&
-			device_tree_is_invalid == false) {
-		vid = 0;
-		pid = 0;
-
-#if (CONNFEM_DBG == 1)
-		pr_info("Found parts[%d] '%s':'%s'",
-				idx, np->name, np->full_name);
-#endif
-
-		strncpy(fem_info->part_name[port_num],
-				np->name, CONNFEM_PART_NAME_SIZE-1);
-		fem_info->part_name[port_num][CONNFEM_PART_NAME_SIZE-1] = 0;
-
-		err = of_property_read_u32(np, "vid", &vid);
-		if (err < 0) {
-			pr_info("[WARN] Fetch parts[%d].vid failed: %d",
-					idx, err);
-			device_tree_is_invalid = true;
-		} else {
-			pr_info("Fetch parts[%d].vid ok: %d",
-					idx, vid);
-			fem_info->part[port_num].vid = vid;
-			switch (port_num) {
-			case CONNFEM_PORT_WF0:
-				fem_info->id |= VID_2G(vid);
-				break;
-			case CONNFEM_PORT_WF1:
-				fem_info->id |= VID_5G(vid);
-				break;
-			default:
-				pr_info("[WARN] unknown port_num: %d",
-						port_num);
-				device_tree_is_invalid = true;
-				break;
-			}
-		}
-
-		err = of_property_read_u32(np, "pid", &pid);
-		if (err < 0) {
-			pr_info("[WARN] Fetch parts[%d].pid failed: %d",
-					idx, err);
-			device_tree_is_invalid = true;
-		} else {
-			pr_info("Fetch parts[%d].pid ok: %d",
-					idx, pid);
-			fem_info->part[port_num].pid = pid;
-			switch (port_num) {
-			case CONNFEM_PORT_WF0:
-				fem_info->id |= PID_2G(pid);
-				break;
-			case CONNFEM_PORT_WF1:
-				fem_info->id |= PID_5G(pid);
-				break;
-			default:
-				pr_info("[WARN] unknown port_num: %d",
-						port_num);
-				device_tree_is_invalid = true;
-				break;
-			}
-		}
-
+		pr_info("[WARN] Error while parsing [%d]%s.%s",
+			i, pctl->state.np[i]->name,
+			(np ? np->name : "(null)"));
 		of_node_put(np);
-
-		idx++;
-		port_num++;
-	}
-
-	pr_info("total_info->fem_info.id: 0x%08x", total_info->fem_info.id);
-#if (CONNFEM_DBG == 1)
-	for (idx = 0; idx < CONNFEM_PORT_NUM; idx++) {
-		pr_info("total_info->fem_info.part[%d].vid: %d",
-				idx,
-				total_info->fem_info.part[idx].vid);
-		pr_info("total_info->fem_info.part[%d].pid: %d",
-				idx,
-				total_info->fem_info.part[idx].pid);
-		pr_info("total_info->fem_info.part_name[%d]: %s",
-				idx,
-				total_info->fem_info.part_name[idx]);
-	}
-#endif
-
-	if (total_info->fem_info.id == 0 || device_tree_is_invalid == true) {
-		pr_info("[WARN] Please make sure fem id is correct, 0x%08x, %d",
-				total_info->fem_info.id,
-				device_tree_is_invalid);
-		return;
-	}
-
-	/* Compose pinctrl-names from parts */
-	snprintf(composed_state_name, COMPOSED_STATE_NAME_SIZE-1, "%s_%s",
-			 fem_info->part_name[CONNFEM_PORT_WF0],
-			 fem_info->part_name[CONNFEM_PORT_WF1]);
-	composed_state_name[COMPOSED_STATE_NAME_SIZE-1] = 0;
-
-#if (CONNFEM_DBG == 1)
-	pr_info("composed_state_name: %s", composed_state_name);
-#endif
-
-	/* Pinctrl - PINMUX */
-	pinctrl = devm_pinctrl_get(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		pr_info("unable to get pinctrl: %ld",
-				PTR_ERR(pinctrl));
 	} else {
-		pin_state = pinctrl_lookup_state(pinctrl, composed_state_name);
-		if (IS_ERR(pin_state)) {
-			pr_info("unable to find state '%s': %ld",
-					composed_state_name,
-					PTR_ERR(pin_state));
-		} else {
-			err = pinctrl_select_state(pinctrl, pin_state);
+		memcpy(result_out, &result, sizeof(result));
 
-			if (err < 0) {
-				pr_info("failed to apply pinctrl: %d", err);
-			}
-			else
-				pr_info("'%s' pinmux successfully applied",
-						composed_state_name);
-		}
-		devm_pinctrl_put(pinctrl);
-		pinctrl = NULL;
+		cfm_epaelna_pininfo_dump(&result_out->pin_info);
+		cfm_epaelna_laainfo_dump(&result_out->laa_pin_info);
+
 	}
 
-	/* Pinctrl - FEM Function Mapping */
-	idx2 = 0;
-	idx4 = 0;
-	idx5 = 0;
+	return err;
+}
 
-	/* Find all pinctrl-names */
-	cnt = of_property_count_strings(devnode, "pinctrl-names");
-	pr_info("number of elements in 'pinctrl-names': %d", cnt);
+/**
+ * cfm_dt_epaelna_pctl_data_parse
+ *	Parses the required properties in the pinctrl data node
+ *
+ * Parameters
+ *	np: Pointer to the node containing the 'pinmux' property.
+ *
+ * Return value
+ *	0	: Success, pin config output will be valid
+ *	-EINVAL : Error
+ *
+ */
+static int cfm_dt_epaelna_pctl_data_parse(
+		struct device_node *np,
+		struct cfm_dt_epaelna_pctl_data_context *pctl_data_out)
+{
+	int err = 0;
+	struct cfm_dt_epaelna_pctl_data_context pctl_data;
 
-	for (idx = 0; idx < cnt; idx++) {
-		/* List all pinctrl-names */
-		err = of_property_read_string_index(devnode, "pinctrl-names",
-								idx, &str);
-		if (err < 0) {
-			pr_info("failed to get pinctrl-names[%d]: %d",
-					idx, err);
+	memset(&pctl_data, 0, sizeof(pctl_data));
+	pctl_data.np = np;
+
+	err = cfm_dt_epaelna_pctl_data_mapping_parse(np, &pctl_data.pin_cnt);
+	if (err < 0)
+		return err;
+
+	err = cfm_dt_epaelna_pctl_data_laa_pinmux_parse(np,
+							 &pctl_data.laa_cnt);
+	if (err < 0)
+		return err;
+
+	memcpy(pctl_data_out, &pctl_data,
+	       sizeof(pctl_data));
+
+	return 0;
+}
+
+/**
+ * cfm_dt_epaelna_pctl_data_mapping_parse
+ *	Parses the 'mapping' property in the pinctrl data node
+ *
+ * Parameters
+ *	np: Pointer to the node containing the 'mapping' property.
+ *
+ * Return value
+ *	0	: Success, pin config output will be valid
+ *	-EINVAL : Error
+ *
+ */
+static int cfm_dt_epaelna_pctl_data_mapping_parse(
+		struct device_node *np,
+		unsigned int *pin_cnt_out)
+{
+	int err = 0;
+	unsigned int pin_cnt;
+	unsigned int mappings;
+
+	/* Get number of entries in pinmux and mapping */
+	err = of_property_count_u32_elems(np, CFM_DT_PROP_PINMUX);
+	if (err <= 0) {
+		pr_info("[WARN] Invalid or missing '%s' property, err %d",
+			CFM_DT_PROP_PINMUX, err);
+		return -EINVAL;
+	}
+	pin_cnt = (unsigned int)err;
+	err = 0;
+
+	err = of_property_count_u32_elems(np, CFM_DT_PROP_MAPPING);
+	if (err <= 0) {
+		pr_info("[WARN] Invalid or missing '%s' property, err %d",
+			CFM_DT_PROP_MAPPING, err);
+		return -EINVAL;
+	}
+	mappings = (unsigned int)err;
+	err = 0;
+
+	/* Validate the number of entries in pinmux and mapping */
+	if (pin_cnt > CONNFEM_EPAELNA_PIN_COUNT) {
+		pr_info("[WARN] '%s' exceeds limit of %d PINs, currently %d",
+			CFM_DT_PROP_PINMUX,
+			CONNFEM_EPAELNA_PIN_COUNT,
+			pin_cnt);
+		return -EINVAL;
+	}
+
+	if ((mappings % CFM_DT_MAPPING_SIZE) != 0) {
+		pr_info("[WARN] '%s' needs to be multiple of %d, currently %d",
+			CFM_DT_PROP_MAPPING, CFM_DT_MAPPING_SIZE, mappings);
+		return -EINVAL;
+	}
+
+	mappings /= CFM_DT_MAPPING_SIZE;
+
+	if (pin_cnt != mappings) {
+		pr_info("[WARN] Unequal number of entries: '%s':%d,'%s':%d",
+			CFM_DT_PROP_PINMUX, pin_cnt,
+			CFM_DT_PROP_MAPPING, mappings);
+		return -EINVAL;
+	}
+
+	*pin_cnt_out = pin_cnt;
+
+	return 0;
+}
+
+/**
+ * cfm_dt_epaelna_pctl_data_laa_pinmux_parse
+ *	Parses the 'laa-mapping' property in the pinctrl data node
+ *
+ * Parameters
+ *	np: Pointer to the node containing the 'mapping' property.
+ *
+ * Return value
+ *	0	: Success, pin config output will be valid
+ *	-EINVAL : Error
+ *
+ */
+static int cfm_dt_epaelna_pctl_data_laa_pinmux_parse(
+		struct device_node *np,
+		unsigned int *laa_cnt_out)
+{
+	int err = 0;
+	unsigned int laa_cnt;
+
+	/* laa-pinmux property is optional */
+	err = of_property_count_u32_elems(np, CFM_DT_PROP_LAA_PINMUX);
+	if (err <= 0)
+		laa_cnt = 0;
+	else
+		laa_cnt = (unsigned int)err;
+
+	/* Validate the number of entries in laa-pinmux */
+	if ((laa_cnt % CFM_DT_LAA_PINMUX_SIZE) != 0) {
+		pr_info("[WARN] '%s' needs to be multiple of %d, currently %d",
+			CFM_DT_PROP_LAA_PINMUX,
+			CFM_DT_LAA_PINMUX_SIZE,
+			laa_cnt);
+		return -EINVAL;
+	}
+
+	laa_cnt /= CFM_DT_LAA_PINMUX_SIZE;
+
+	if (laa_cnt > CONNFEM_EPAELNA_LAA_PIN_COUNT) {
+		pr_info("[WARN] '%s' exceeds limit of %d PINs, currently %d",
+			CFM_DT_PROP_LAA_PINMUX,
+			CONNFEM_EPAELNA_LAA_PIN_COUNT,
+			laa_cnt);
+		return -EINVAL;
+	}
+
+	*laa_cnt_out = laa_cnt;
+
+	return 0;
+}
+
+/**
+ * cfm_dt_epaelna_flags_parse
+ *	Locate & collect the flag nodes for each subsys based on hwid.
+ *
+ *	Note that for a given hwid:
+ *	1. Subsys does not necessary need to define its flags node.
+ *		- Subsys' flags np in the flags context will set to NULL.
+ *	2. Flags node is defined, but is empty
+ *		- Subsys' flags np in the flags context will be valid, caller
+ *		  needs to decide how to deal with.
+ *
+ *	On success, flags context needs to be released via
+ *	cfm_dt_epaelna_flags_free() or cfm_dt_epaelna_free();
+ *
+ * Parameters
+ *	np	 : Pointer to the epa_elna/_mtk node containing the subsys node.
+ *	hwid	 : Indication on which flag node to be selected.
+ *	flags_out: Pointer to the flags context for storing the parsed states.
+ *
+ * Return value
+ *	0	: Success, output parameter will be valid
+ *	-EINVAL : Error
+ *
+ */
+static int cfm_dt_epaelna_flags_parse(
+		struct device_node *np,
+		unsigned int hwid,
+		struct cfm_dt_epaelna_flags_context *flags_out)
+{
+	int i;
+	struct device_node *subsys_np;
+	struct cfm_dt_epaelna_flags_context flags;
+
+	memset(&flags, 0, sizeof(flags));
+
+	/* Flags node name is based on hwid, it's the same for all subsys */
+	snprintf(flags.node_name, sizeof(flags.node_name),
+		 "%s%d",
+		 CFM_DT_PROP_FLAGS_PREFIX, hwid);
+
+	/* Collect subsys' flags node if valid */
+	for (i = 0; i < CONNFEM_SUBSYS_NUM; i++) {
+		if (cfm_subsys_name[i] == NULL)
+			continue;
+
+		subsys_np = of_get_child_by_name(np, cfm_subsys_name[i]);
+		if (!subsys_np) {
+			pr_info("[WARN] Skip %s flags, missing '%s' node",
+				cfm_subsys_name[i],
+				cfm_subsys_name[i]);
 			continue;
 		}
 
-		/* Compare between pinctrl-names with composed part name */
-		if (strncmp(str, composed_state_name,
-			strlen(composed_state_name)) != 0) {
-			pr_info("pinctrl-names[%d]: '%s'",
-			idx, str);
+		flags.np[i] = of_get_child_by_name(subsys_np, flags.node_name);
+		if (!flags.np[i]) {
+			pr_info("[WARN] Skip %s flags, missing '%s' node",
+				cfm_subsys_name[i],
+				flags.node_name);
 			continue;
 		}
 
-		/* Found pinctrl-names == composed part name */
-#if (CONNFEM_DBG == 1)
-		pr_info("pinctrl-names[%d]: '%s' matched",
-				idx, str);
-#endif
-
-		snprintf(prop_name,
-				 sizeof(prop_name),
-				 "pinctrl-%d", idx);
-#if (CONNFEM_DBG == 1)
-		pr_info("pinctrl-names[%d]: '%s' => '%s'",
-				idx, str, prop_name);
-#endif
-
-		/* List all nodes of pinctrl-n to find GPIO pinmux */
-		while ((pinctrl_elem_np =
-				of_parse_phandle(devnode,
-				prop_name, idx2))) {
-			if (!pinctrl_elem_np) {
-				/* Can not find corresponding GPIO pinmux */
-				pr_info("[WARN] failed to get '%s', index: %d",
-					   prop_name, idx2);
-				idx2++;
-				continue;
-			}
-			np = of_find_node_by_name(
-				pinctrl_elem_np,
-				"pins_cmd_dat");
-			if (!np) {
-				/* Can not find pins_cmd_dat */
-				pr_info("[WARN] failed to get 'pins_cmd_dat' under %s",
-						prop_name);
-				of_node_put(pinctrl_elem_np);
-				pinctrl_elem_np = NULL;
-				idx2++;
-				continue;
-			}
-			/* Parse mapping node */
-			cnt2 = of_property_count_u32_elems(np, "mapping");
-			pr_info("total num of elements in pins_cmd_dat.'mapping': %d",
-					cnt2);
-			if (cnt2 > 0 && (cnt2 % FEM_MAPPING_SIZE) != 0) {
-				pr_info("total num of elements in 'mapping'(%d) is not a multiple of %d",
-						cnt2,
-						FEM_MAPPING_SIZE);
-			} else {
-				for (idx3 = 0; idx3 < cnt2;
-					idx3 += FEM_MAPPING_SIZE) {
-					value = value2 = value3 = 0;
-					err = of_property_read_u32_index(
-							np, "mapping",
-							idx3, &value);
-					err2 = of_property_read_u32_index(
-							np, "mapping",
-							idx3 + 1, &value2);
-					err3 = of_property_read_u32_index(
-							np, "mapping",
-							idx3 + 2, &value3);
-					pr_info("[%d]ANTSEL{er:%d,value:%d}, [%d]FemPIN{er:%d,value:0x%02x}, [%d]polarity{er:%d,value:%d}",
-						idx3, err, value,
-						idx3 + 1, err2, value2,
-						idx3 + 2, err3, value3);
-					pin_info->pin[idx4].antsel =
-						value;
-					pin_info->pin[idx4].fem =
-						value2;
-					pin_info->pin[idx4].polarity =
-						value3;
-					idx4++;
-				}
-				pin_info->count = idx4;
-			}
-
-			/* Parse laa-pinmux node */
-			idx3 = 0;
-			cnt3 = of_property_count_u32_elems(np, "laa-pinmux");
-			pr_info("total num of elements in pins_cmd_dat.'laa-pinmux': %d",
-					cnt3);
-			if (cnt3 > 0 && (cnt3 % LAA_PINMUX_SIZE) != 0) {
-				pr_info("total num of elements in 'mapping'(%d) is not a multiple of %d",
-						cnt3,
-						LAA_PINMUX_SIZE);
-			} else {
-				for (idx3 = 0; idx3 < cnt3;
-					idx3 += LAA_PINMUX_SIZE) {
-					value = value2 = 0;
-					err = of_property_read_u32_index(
-							np, "laa-pinmux",
-							idx3, &value);
-					err2 = of_property_read_u32_index(
-							np, "laa-pinmux",
-							idx3 + 1, &value2);
-					gpio_value = MTK_GET_PIN_NO(value);
-					gpio_value2 = MTK_GET_PIN_NO(value2);
-					wf_mode_value = MTK_GET_PIN_FUNC(value);
-					md_mode_value =
-						MTK_GET_PIN_FUNC(value2);
-					pr_info("[%d]gpio1{er:%d,value:%d}, gpio2{er:%d,value:%d}, wf_mode{er:%d,value:%d}, md_mode{er:%d,value:%d}",
-						idx3, err, gpio_value,
-						err2, gpio_value2,
-						err, wf_mode_value,
-						err2, md_mode_value);
-
-					if (gpio_value == gpio_value2) {
-						laa_p_info->pin[idx5].gpio =
-							gpio_value;
-						laa_p_info->pin[idx5].wf_mode =
-							wf_mode_value;
-						laa_p_info->pin[idx5].md_mode =
-							md_mode_value;
-						idx5++;
-					} else {
-						pr_info("[WARN] laa-pinmux get 2 different gpio: %d and %d",
-								gpio_value,
-								gpio_value2);
-						break;
-					}
-				}
-				laa_p_info->count = idx5;
-			}
-
-			of_node_put(np);
-			np = NULL;
-
-			of_node_put(pinctrl_elem_np);
-			pinctrl_elem_np = NULL;
-
-			idx2++;
-		}
-		break;
+		of_node_put(subsys_np);
 	}
 
-	/* Get wifi and bt flags */
-	connfem_dt_parser_wifi(epaelna_node, total_info, parts_selected);
-	connfem_dt_parser_bt(epaelna_node, total_info, parts_selected);
+	memcpy(flags_out, &flags, sizeof(flags));
 
-	/* Set it to true if any pin mapping is existed */
-	if (fem_info->id > 0 &&
-		device_tree_is_invalid == false)
-		total_info->connfem_available = true;
-
-	/* Make sure all values are 0 if connfem_available is false */
-	if (total_info->connfem_available == false)
-		memset(total_info, 0,
-			sizeof(struct connfem_epaelna_total_info));
-
-#if (CONNFEM_DBG == 1)
-	pr_info("total_info->pin_info.count: %d",
-			total_info->pin_info.count);
-	for (idx = 0; idx < total_info->pin_info.count; idx++) {
-		pr_info("total_info->pin_info.pin[%d].antsel: %d",
-				idx, total_info->pin_info.pin[idx].antsel);
-		pr_info("total_info->pin_info.pin[%d].fem: 0x%02x",
-				idx, total_info->pin_info.pin[idx].fem);
-		pr_info("total_info->pin_info.pin[%d].polarity: %d",
-				idx, total_info->pin_info.pin[idx].polarity);
-	}
-
-	pr_info("total_info->laa_pin_info.count: %d",
-			total_info->laa_pin_info.count);
-	for (idx = 0; idx < total_info->laa_pin_info.count; idx++) {
-		pr_info("total_info->laa_pin_info.pin[%d].gpio: %d",
-				idx, total_info->laa_pin_info.pin[idx].gpio);
-		pr_info("total_info->laa_pin_info.pin[%d].md_mode: %d",
-				idx, total_info->laa_pin_info.pin[idx].md_mode);
-		pr_info("total_info->laa_pin_info.pin[%d].wf_mode: %d",
-				idx, total_info->laa_pin_info.pin[idx].wf_mode);
-	}
-#endif
+	return 0;
 }

@@ -1,6 +1,6 @@
 ###############################################################################
 # Necessary Check
-
+###############################################################################
 ifneq ($(KERNEL_OUT),)
     ccflags-y += -imacros $(KERNEL_OUT)/include/generated/autoconf.h
 endif
@@ -12,24 +12,43 @@ endif
 # Force build fail on modpost warning
 KBUILD_MODPOST_FAIL_ON_WARNINGS := y
 
+
+###############################################################################
+# GCC Options
 ###############################################################################
 ccflags-y += -Wall
 ccflags-y += -Werror
 
+
+###############################################################################
+# Compile Options
+###############################################################################
+ifneq ($(TARGET_BUILD_VARIANT), user)
+    ccflags-y += -D CONNFEM_DBG=1
+else
+    ccflags-y += -D CONNFEM_DBG=0
+endif
+
+
+###############################################################################
+# Include Paths
+###############################################################################
+ccflags-y += -I$(src)/include
+
+
+###############################################################################
+# ConnFem Module
 ###############################################################################
 MODULE_NAME := connfem
 obj-m += $(MODULE_NAME).o
 
-###############################################################################
-# ConnFem Core
-###############################################################################
 $(MODULE_NAME)-objs += connfem_module.o
 $(MODULE_NAME)-objs += connfem_api.o
-$(MODULE_NAME)-objs += connfem_epaelna.o
-$(MODULE_NAME)-objs += connfem_dt_parser.o
-$(MODULE_NAME)-objs += connfem_dt_parser_wifi.o
-$(MODULE_NAME)-objs += connfem_dt_parser_bt.o
 $(MODULE_NAME)-objs += connfem_container.o
+$(MODULE_NAME)-objs += connfem_dt_parser.o
+$(MODULE_NAME)-objs += connfem_epaelna.o
+$(MODULE_NAME)-objs += connfem_subsys_bt.o
+$(MODULE_NAME)-objs += connfem_subsys_wifi.o
 
 ifneq ($(wildcard $(TOP)/vendor/mediatek/internal/connfem_enable),)
     $(info ConnFem: MTK internal load)
@@ -38,13 +57,15 @@ else
     $(info ConnFem: Customer load)
 endif
 
-###############################################################################
-# Common_main
-###############################################################################
-ccflags-y += -I$(src)/include
 
-ifneq ($(TARGET_BUILD_VARIANT), user)
-    ccflags-y += -D CONNFEM_DBG=1
+###############################################################################
+# Test
+###############################################################################
+CONNFEM_TEST_ENABLED = no
+
+ifeq ($(CONNFEM_TEST_ENABLED), yes)
+    ccflags-y += -D CONNFEM_TEST_ENABLED=1
+    $(MODULE_NAME)-objs += connfem_test.o
 else
-    ccflags-y += -D CONNFEM_DBG=0
+    ccflags-y += -D CONNFEM_TEST_ENABLED=0
 endif
