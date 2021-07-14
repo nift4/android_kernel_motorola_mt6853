@@ -15,7 +15,7 @@
 #define CFM_DT_NODE_WIFI		"wifi"
 #define CFM_DT_NODE_BT			"bt"
 #define CFM_DT_PROP_PARTS		"parts"
-#define CFM_DT_PROP_HWID		"gpio-hwid"
+#define CFM_DT_PROP_HWID		"hwid"
 #define CFM_DT_PROP_FLAGS_PREFIX	"flags-"
 #define CFM_DT_PROP_PINCTRL_PREFIX	"pinctrl-"
 #define CFM_DT_PROP_PINMUX		"pinmux"
