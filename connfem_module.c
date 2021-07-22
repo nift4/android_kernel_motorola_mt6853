@@ -20,8 +20,8 @@
 /*******************************************************************************
  *				M A C R O S
  ******************************************************************************/
-#define CONNFEM_DRIVER_NAME "connfem"
-#define CONNFEM_DEV_NUM 1
+#define CONNFEM_DRIVER_NAME	"connfem"
+#define CONNFEM_DEV_NUM		1
 
 /*******************************************************************************
  *			    D A T A   T Y P E S
@@ -91,7 +91,6 @@ static struct platform_driver connfem_plat_drv = {
 };
 
 /* Char Device */
-static int connfem_major;
 static struct connfem_cdev_context connfem_cdev_ctx;
 
 static const struct file_operations connfem_dev_fops = {
@@ -100,6 +99,10 @@ static const struct file_operations connfem_dev_fops = {
 	.compat_ioctl = connfem_dev_compat_ioctl,
 #endif
 };
+
+/* Module Parameters */
+static unsigned int connfem_major;
+static unsigned int epa_elna_hwid = CFM_PARAM_EPAELNA_HWID_INVALID;
 
 /*******************************************************************************
  *			      F U N C T I O N S
@@ -116,6 +119,11 @@ void cfm_context_free(struct connfem_context *cfm)
 
 	cfm_dt_free(&cfm->dt);
 	cfm_epaelna_config_free(&cfm->epaelna, true);
+}
+
+unsigned int cfm_param_epaelna_hwid(void)
+{
+	return epa_elna_hwid;
 }
 
 static int cfm_ioc_is_available_hdlr(unsigned long usr_arg)
@@ -546,3 +554,4 @@ MODULE_DESCRIPTION("Connsys FEM (Front-End-Module) Driver");
 MODULE_AUTHOR("Dennis Lin <dennis.lin@mediatek.com>");
 MODULE_AUTHOR("Brad Chou <brad.chou@mediatek.com>");
 module_param(connfem_major, uint, 0644);
+module_param(epa_elna_hwid, uint, 0644);

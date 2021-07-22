@@ -218,17 +218,24 @@ static int cfm_dt_epaelna_parse(struct device_node *np,
 	struct device_node *dn = cfm->pdev->dev.of_node;
 	struct cfm_dt_epaelna_context *dt = &cfm->dt.epaelna;
 	struct cfm_epaelna_config *result = &cfm->epaelna;
+	unsigned int hwid;
 
 	/* Initialize */
 	memset(dt, 0, sizeof(*dt));
 	memset(result, 0, sizeof(*result));
 
 	/* HWID property is optional, but must be valid if it exists */
-	err = cfm_dt_epaelna_hwid_parse(np, &dt->hwid);
-	if (err == -ENOENT)
-		dt->hwid = 0;
-	else if (err < 0)
-		return -EINVAL;
+	hwid = cfm_param_epaelna_hwid();
+	if (hwid == CFM_PARAM_EPAELNA_HWID_INVALID) {
+		err = cfm_dt_epaelna_hwid_parse(np, &dt->hwid);
+		if (err == -ENOENT)
+			dt->hwid = 0;
+		else if (err < 0)
+			return -EINVAL;
+	} else {
+		dt->hwid = hwid;
+		pr_info("Force HWID: %d", dt->hwid);
+	}
 
 	/* Parse parts property */
 	err = cfm_dt_epaelna_parts_parse(np, dt->hwid, dt->parts_np);

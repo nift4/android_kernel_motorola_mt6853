@@ -37,6 +37,8 @@
 #define CFM_IOC_EPA_INFO	_IOR(CFM_IOC_MAGIC, \
 				     0x03, struct cfm_ioc_epa_info)
 
+#define CFM_PARAM_EPAELNA_HWID_INVALID	0xFFFFFFFF
+
 /*******************************************************************************
  *			    D A T A   T Y P E S
  ******************************************************************************/
@@ -92,5 +94,6 @@ extern char *cfm_subsys_name[CONNFEM_SUBSYS_NUM];
  ******************************************************************************/
 extern bool connfem_is_internal(void);
 extern void cfm_context_free(struct connfem_context *cfm);
+extern unsigned int cfm_param_epaelna_hwid(void);
 
 #endif /* __CONNFEM_H__ */
