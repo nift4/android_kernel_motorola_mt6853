@@ -15,9 +15,9 @@ PROJ_DT_NAMES := $(subst $\",,$(CONFIG_ARCH_MTK_PROJECT))
 endif
 
 MAIN_DTB_FILES := $(addsuffix .dtb,$(addprefix $(objtree)/arch/$(SRCARCH)/boot/dts/, $(MAIN_DT_NAMES)))
-PROJ_DTB_FILES := $(addsuffix .dtb,$(addprefix $(objtree)/arch/$(SRCARCH)/boot/dts/, $(PROJ_DT_NAMES)))
+PROJ_DTB_FILES := $(addsuffix .dtbo,$(addprefix $(objtree)/arch/$(SRCARCH)/boot/dts/, $(PROJ_DT_NAMES)))
 PROJ_DTS_FILES := $(addsuffix .dts,$(addprefix $(srctree)/arch/$(SRCARCH)/boot/dts/, $(PROJ_DT_NAMES)))
-ABS_DTB_FILES := $(abspath $(addsuffix .dtb,$(addprefix $(objtree)/arch/$(SRCARCH)/boot/dts/,$(PROJ_DT_NAMES))))
+ABS_DTB_FILES := $(abspath $(addsuffix .dtbo,$(addprefix $(objtree)/arch/$(SRCARCH)/boot/dts/,$(PROJ_DT_NAMES))))
 ABS_DTB2_FILES := $(abspath $(addsuffix .dtb,$(addprefix $(objtree)/arch/$(SRCARCH)/boot/dts/, $(MAIN_DT_NAMES))))
 
 export PROJ_DTB_FILES
@@ -73,6 +73,7 @@ endef
 $(objtree)/dtboimg.cfg: FORCE
 	rm -f $@.tmp
 	$(foreach f,$(ABS_DTB_FILES),$(call mk_dtboimg_cfg,$(f),$@.tmp))
+	touch $@.tmp
 	if ! cmp -s $@.tmp $@; then \
 		mv $@.tmp $@; \
 	else \
@@ -82,6 +83,7 @@ $(objtree)/dtboimg.cfg: FORCE
 $(objtree)/dtbimg.cfg: FORCE
 	rm -f $@.tmp
 	$(foreach f,$(ABS_DTB2_FILES),$(call mk_dtbimg_cfg,$(f),$@.tmp))
+	touch $@.tmp
 	if ! cmp -s $@.tmp $@; then \
 		mv $@.tmp $@; \
 	else \
