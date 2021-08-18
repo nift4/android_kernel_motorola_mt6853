@@ -127,6 +127,11 @@ int connfem_epaelna_laa_get_pin_info(
 	memcpy(laa_pin_info, &connfem_ctx->epaelna.pin_cfg.laa_pin_info,
 	       sizeof(*laa_pin_info));
 
+	/* Assign chip id to connfem_epaelna_laa_pin_info
+	 * due to FW (COEX LAA 4x4 module) need this information.
+	 */
+	laa_pin_info->chip_id = connfem_ctx->id;
+
 	pr_info("GetLaaPinInfo");
 	cfm_epaelna_laainfo_dump(laa_pin_info);
 

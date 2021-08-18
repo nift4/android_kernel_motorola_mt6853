@@ -46,7 +46,6 @@ static long connfem_dev_unlocked_ioctl(struct file *filp, unsigned int cmd,
 static long connfem_dev_compat_ioctl(struct file *filp, unsigned int cmd,
 				     unsigned long arg);
 #endif
-
 /*******************************************************************************
  *			    P U B L I C   D A T A
  ******************************************************************************/
@@ -64,6 +63,9 @@ struct connfem_context connfem_ctx_mt6893 = {
 struct connfem_context connfem_ctx_mt6983 = {
 	.id = 0x6983
 };
+struct connfem_context connfem_ctx_mt6879 = {
+	.id = 0x6879
+};
 
 static const struct of_device_id connfem_of_ids[] = {
 	{
@@ -73,6 +75,10 @@ static const struct of_device_id connfem_of_ids[] = {
 	{
 		.compatible = "mediatek,mt6983-connfem",
 		.data = (void *)&connfem_ctx_mt6983
+	},
+	{
+		.compatible = "mediatek,mt6879-connfem",
+		.data = (void *)&connfem_ctx_mt6879
 	},
 	{}
 };
@@ -389,6 +395,16 @@ static int connfem_plat_probe(struct platform_device *pdev)
 	if (err < 0) {
 		pr_info("%s device tree error %d",
 			pdev->name, err);
+
+		/* Set error to EPROBE_DEFER due to currently EAGAIN is
+		 * get only when PMIC is not ready. Return immediately
+		 * and wait for next probe() callback
+		 */
+		if (err == -EAGAIN) {
+			pr_info("Get -EAGAIN and set error to -EPROBE_DEFER");
+			err = -EPROBE_DEFER;
+			goto probe_end;
+		}
 
 		/* We dont goto probe_end because there could be some critical
 		 * information being parsed despite an error occurred.

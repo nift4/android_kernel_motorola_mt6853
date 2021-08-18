@@ -8,6 +8,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/iio/consumer.h>
 #include "connfem.h"
 
 /*******************************************************************************
@@ -32,7 +33,27 @@ static void cfm_dt_epaelna_free(struct cfm_dt_epaelna_context *dt,
 				bool free_all);
 
 static int cfm_dt_epaelna_hwid_parse(struct device_node *np,
-				     unsigned int *hwid);
+		struct platform_device *pdev,
+		unsigned int *hwid);
+
+static int cfm_dt_epaelna_hwid_gpio_parse(struct device_node *np,
+		unsigned int *hwid_out,
+		unsigned int *nbits_out);
+
+static int cfm_dt_epaelna_hwid_pmic_parse(struct device_node *np,
+		struct platform_device *pdev,
+		unsigned int *hwid_out,
+		unsigned int *nbits_out);
+
+static int cfm_dt_epaelna_hwid_pmic_match(struct device_node *pmic_node,
+		char *range_n,
+		unsigned int pmic_value,
+		unsigned int *hwid_out,
+		unsigned int *nbits_out);
+
+static int cfm_dt_epaelna_hwid_pmic_read(struct platform_device *pdev,
+		const char *channel_name,
+		unsigned int *value_out);
 
 static int cfm_dt_epaelna_parts_parse(
 		struct device_node *np,
@@ -227,9 +248,11 @@ static int cfm_dt_epaelna_parse(struct device_node *np,
 	/* HWID property is optional, but must be valid if it exists */
 	hwid = cfm_param_epaelna_hwid();
 	if (hwid == CFM_PARAM_EPAELNA_HWID_INVALID) {
-		err = cfm_dt_epaelna_hwid_parse(np, &dt->hwid);
+		err = cfm_dt_epaelna_hwid_parse(np, cfm->pdev, &dt->hwid);
 		if (err == -ENOENT)
 			dt->hwid = 0;
+		else if (err == -EAGAIN)
+			return err;
 		else if (err < 0)
 			return -EINVAL;
 	} else {
@@ -309,32 +332,98 @@ dt_epaelna_err:
 	return err;
 }
 
-
 /**
  * cfm_dt_epaelna_hwid_parse
- *	Parses and retrieves type of hardware based on hwid property.
+ *	Parses and retrieves type of hardware based on info in hwid node.
  *
  * Parameters
- *	np	: Pointer to the node containing the 'hwid' property.
+ *	np	: Pointer to the node containing the 'hwid' node.
+ *	pdev	: Pointer to the platform_device
  *	hwid	: Output parameter storing the final HW ID
  *
  * Return value
- *	0	: Success, hwid will contain valid result
+ *	0		: Success, hwid will contain valid result
  *	-ENOENT	: HW ID not defined in device tree, hwid will set to 0
- *	-EINVAL : Failed to parse hwid property
- *
+ *	-EINVAL	: Failed to parse hwid property
+ *	-EAGAIN	: PMIC is not ready for probe, return immediately and
+ *					  wait for next probe() callback
  */
 static int cfm_dt_epaelna_hwid_parse(struct device_node *np,
+				     struct platform_device *pdev,
 				     unsigned int *hwid_out)
 {
-	int i, cnt, gpio_num;
-	unsigned int gpio_value;
 	unsigned int hwid = 0;
+	struct device_node *np_hwid;
+	unsigned int hwid_tmp = 0;
+	unsigned int nbits = 0;
+	unsigned int bits = 0;
+	int ret = 0;
 
-	/* Get number of HWID GPIO PINs if the property exists */
-	cnt = of_gpio_named_count(np, CFM_DT_PROP_HWID);
+	/* Get node of HWID if it is exists */
+	np_hwid = of_get_child_by_name(np, CFM_DT_NODE_HWID);
+	if (!np_hwid)
+		return -ENOENT;
+
+	/* Retrieve hwid by gpio */
+	ret = cfm_dt_epaelna_hwid_gpio_parse(np_hwid, &hwid_tmp, &bits);
+	if (ret < 0 && ret != -ENOENT) {
+		return -EINVAL;
+	} else if (ret != -ENOENT) {
+		hwid |= (hwid_tmp << nbits);
+		nbits += bits;
+	}
+
+	/* Retrieve hwid by pmic */
+	hwid_tmp = 0;
+	bits = 0;
+	ret = cfm_dt_epaelna_hwid_pmic_parse(np_hwid, pdev,
+			&hwid_tmp, &bits);
+	if (ret == -EAGAIN) {
+		return ret;
+	} else if (ret < 0 && ret != -ENOENT) {
+		return -EINVAL;
+	} else if (ret != -ENOENT) {
+		hwid |= (hwid_tmp << nbits);
+		nbits += bits;
+	}
+
+	/* Update output parameter */
+	*hwid_out = hwid;
+
+	pr_info("hwid: %d, nbits: %d", hwid, nbits);
+
+	return 0;
+}
+
+/**
+ * cfm_dt_epaelna_hwid_gpio_parse
+ *	Parses hwid value based on GPIO property.
+ *
+ * Parameters
+ *	np	: Pointer to the node containing the 'gpio' property.
+ *	hwid_out	: Output parameter storing the hwid calculated
+ *				by gpio property
+ *	nbits_out	: Output parameter storing the value
+ *				how many bits to present hwid
+ *
+ * Return value
+ *	0		: Success, hwid will contain valid result
+ *	-ENOENT	: gpio is not defined in device tree, hwid will set to 0
+ *	-EINVAL : Failed to parse gpio property
+ *
+ */
+static int cfm_dt_epaelna_hwid_gpio_parse(struct device_node *np,
+				     unsigned int *hwid_out,
+				     unsigned int *nbits_out)
+{
+	int i, cnt, gpio_num;
+	unsigned int hwid = 0;
+	unsigned int consumed_bits = 0;
+	unsigned int gpio_value = 0;
+
+	cnt = of_gpio_named_count(np, CFM_DT_PROP_GPIO);
 	if (cnt <= 0 && cnt != -ENOENT) {
-		pr_info("[WARN] Invalid '%s' property", CFM_DT_PROP_HWID);
+		pr_info("[WARN] Invalid '%s' property", CFM_DT_PROP_GPIO);
 		return -EINVAL;
 	}
 
@@ -347,12 +436,12 @@ static int cfm_dt_epaelna_hwid_parse(struct device_node *np,
 	/* Retrieve hardware ID based on GPIO PIN(s) value */
 	for (i = 0; i < cnt; i++) {
 		/* Retrieve GPIO PIN number */
-		gpio_num = of_get_named_gpio(np, CFM_DT_PROP_HWID, i);
+		gpio_num = of_get_named_gpio(np, CFM_DT_PROP_GPIO, i);
 
 		/* Abort if it's not valid */
 		if (!gpio_is_valid(gpio_num)) {
 			pr_info("[WARN] Invalid '%s' property: idx(%d)err(%d)",
-				CFM_DT_PROP_HWID,
+				CFM_DT_NODE_HWID,
 				i, gpio_num);
 			hwid = 0;
 			return -EINVAL;
@@ -362,14 +451,280 @@ static int cfm_dt_epaelna_hwid_parse(struct device_node *np,
 		gpio_value = gpio_get_value(gpio_num);
 		hwid |= ((gpio_value & 0x1) << i);
 		pr_info("%s[%d]: GPIO(%d)=%d, hwid(%u)",
-			CFM_DT_PROP_HWID, i,
+			CFM_DT_NODE_HWID, i,
 			gpio_num, gpio_value, hwid);
+
+		consumed_bits++;
 	}
 
-	/* Update output parameter */
 	*hwid_out = hwid;
+	*nbits_out = consumed_bits;
 
 	return 0;
+}
+
+/**
+ * cfm_dt_epaelna_hwid_pmic_parse
+ *	Parses hwid value based on PMIC device node.
+ *
+ * Parameters
+ *	np		: Pointer to the node containing the 'pmic' device node.
+ *	pdev	: Pointer to the platform_device
+ *	hwid_out	: Output parameter storing the hwid
+ *					calculated by pmic device node
+ *	nbits_out	: Output parameter storing the value
+ *					how many bits to present hwid
+ *
+ * Return value
+ *	0		: Success, hwid will contain valid result
+ *	-ENOENT	: pmic is not defined in device tree, hwid will set to 0
+ *	-EINVAL : Failed to parse pmic device node
+ *	-EAGAIN	: PMIC is not ready for probe, return immediately
+ *					and wait for next probe() callback
+ *
+ */
+static int cfm_dt_epaelna_hwid_pmic_parse(
+		struct device_node *np,
+		struct platform_device *pdev,
+		unsigned int *hwid_out,
+		unsigned int *nbits_out)
+{
+	struct device_node *pmic_node;
+	int i, err, cnt, bits;
+	const char *channel_name;
+	char range_n[sizeof(CFM_DT_PROP_RANGE_PREFIX) + 10 + 1];
+	unsigned int pmic_value = 0;
+	unsigned int hwid = 0;
+	unsigned int nbits = 0;
+	unsigned int hwid_tmp = 0;
+
+	/* Get node of pmic if it is exists */
+	pmic_node = of_get_child_by_name(np, CFM_DT_NODE_PMIC);
+	if (!pmic_node)
+		return -ENOENT;
+
+	/* Retrieve name number from pmic node */
+	cnt = of_property_count_strings(pmic_node, CFM_DT_PROP_CHANNEL_NAME);
+	if (cnt < 0) {
+		pr_info("[WARN] Missing '%s', cnt: %d",
+			CFM_DT_PROP_CHANNEL_NAME,
+			cnt);
+		return -EINVAL;
+	} else if (cnt == 0) {
+		return -ENOENT;
+	}
+
+	/* Retrieve hardware ID based on PMIC PIN(s) value */
+	for (i = 0; i < cnt; i++) {
+		/* Retrieve name */
+		err = of_property_read_string_index(pmic_node,
+				CFM_DT_PROP_CHANNEL_NAME,
+				i,
+				&channel_name);
+		if (err < 0) {
+			pr_info("[WARN] Invalid '%s' property: idx(%d)err(%d)",
+				CFM_DT_PROP_CHANNEL_NAME,
+				i,
+				err);
+			return -EINVAL;
+		}
+		pr_info("Channel_name: %s, idx: %d", channel_name, i);
+
+		err = of_property_match_string(pdev->dev.of_node, CFM_DT_PROP_IO_CHANNEL_NAMES, channel_name);
+		if (err < 0) {
+			pr_info("[WARN] '%s' not found, err(%d)",
+				channel_name,
+				err);
+			return -EINVAL;
+		}
+
+		snprintf(range_n, sizeof(range_n), "%s%d",
+			CFM_DT_PROP_RANGE_PREFIX,
+			i);
+
+		/* Retrieve value from PMIC channel name */
+		pmic_value = 0;
+		err = cfm_dt_epaelna_hwid_pmic_read(pdev,
+					 channel_name, &pmic_value);
+		if (err == -EAGAIN)
+			return err;
+		else if (err < 0)
+			return -EINVAL;
+
+		err = cfm_dt_epaelna_hwid_pmic_match(pmic_node,
+					range_n,
+					pmic_value,
+					&hwid_tmp,
+					&bits);
+
+		if (err == -EAGAIN)
+			return err;
+		else if (err < 0)
+			return -EINVAL;
+
+		hwid |= (hwid_tmp << nbits);
+		nbits += bits;
+
+		pr_info("After apply '%s', hwid set to %d", channel_name, hwid);
+	}
+
+	*hwid_out = hwid;
+	*nbits_out = nbits;
+
+	return 0;
+}
+
+/**
+ * cfm_dt_epaelna_hwid_pmic_match
+ *	Determine hwid based on ranges and pmic value.
+ *
+ * Parameters
+ *	pmic_node	: Pointer to the 'pmic' HWID device node.
+ *	range_n		: Pointer to the range-n containing pmic ranges
+ *	pmic_value	: PMIC value read from specific io-channel
+ *	hwid_out	: Output parameter storing the hwid
+ *					calculated by pmic device node
+ *	nbits_out	: Output parameter storing the value
+ *					how many bits to present hwid
+ *
+ * Return value
+ *	0		: Success, hwid will contain valid result
+ *	-ENOENT	: pmic is not defined in device tree, hwid will set to 0
+ *	-EINVAL : Failed to parse pmic device node
+ *	-EAGAIN	: PMIC is not ready for probe, return immediately
+ *					and wait for next probe() callback
+ *
+ */
+static int cfm_dt_epaelna_hwid_pmic_match(
+		struct device_node *pmic_node,
+		char *range_n,
+		unsigned int pmic_value,
+		unsigned int *hwid_out,
+		unsigned int *nbits_out)
+{
+	unsigned int prev_range = 0;
+	unsigned int curr_range = 0;
+	int i, err, tmp, range_count = 0;
+	unsigned int hwid = 0;
+	unsigned int nbits = 0;
+
+	/* Retrieve count of range_n */
+	range_count =
+			of_property_count_u32_elems(pmic_node, range_n);
+	if (range_count <= 0) {
+		pr_info("[WARN] Can not find '%s' property, err %d",
+			range_n,
+			range_count);
+		return -EINVAL;
+	}
+
+	prev_range = 0;
+	for (i = 0; i < range_count; i++) {
+		/* Retrieve values from range */
+		err = of_property_read_u32_index(pmic_node,
+			 range_n, i, &curr_range);
+		if (err < 0) {
+			pr_info("[WARN] Can not get value from '%s' property, err %d",
+				range_n,
+				range_count);
+			return -EINVAL;
+		}
+
+		pr_info("property: %s, [%d/%d], curr_range: %d, prev_range: %d",
+				range_n,
+				i,
+				range_count,
+				curr_range,
+				prev_range);
+
+		if (prev_range >= curr_range) {
+			pr_info("[WARN] '%s' values are not from small to large",
+				range_n);
+			return -EINVAL;
+		}
+
+		/* Compare value between pmic and range and determine hwid */
+		if (prev_range <= pmic_value &&
+				   pmic_value < curr_range) {
+			break;
+		}
+
+		prev_range = curr_range;
+	}
+	hwid = i;
+
+	/* Count total bits */
+	tmp = range_count;
+	while (tmp) {
+		nbits++;
+		tmp >>= 1;
+	}
+
+	pr_info("hwid set to: %d, consumed bits for '%s': %d",
+			hwid,
+			range_n,
+			nbits);
+
+	*hwid_out = hwid;
+	*nbits_out = nbits;
+
+	return 0;
+}
+
+/**
+ * cfm_dt_epaelna_hwid_pmic_read
+ *	Read pmic value based on PMIC channel.
+ *
+ * Parameters
+ *	pdev			: Pointer to the platform_device
+ *	channel_name	: Get the PMIC value based on this channel_name
+ *	value_out		: Output parameter storing the value read
+ *					from PMIC
+ *
+ * Return value
+ *	0		: Success, hwid will contain valid result
+ *	-EAGAIN	: PMIC is not ready for probe, return immediately
+ *					and wait for next probe() callback
+ *
+ */
+static int cfm_dt_epaelna_hwid_pmic_read(
+		struct platform_device *pdev,
+		const char *channel_name,
+		unsigned int *value_out)
+{
+	struct iio_channel *chan_iio_channel;
+	int ret = 0;
+	int val = 0;
+
+	chan_iio_channel = devm_iio_channel_get(&pdev->dev, channel_name);
+	ret = PTR_ERR_OR_ZERO(chan_iio_channel);
+
+	if (ret) {
+		pr_info("PMIC '%s' get fail, err: %d", channel_name, ret);
+		/* if error code is EPROBE_DEFER (517),
+		 * probe function will be called again
+		 */
+		if (ret == -EPROBE_DEFER) {
+			pr_info("[WARN] Got EPROBE_DEFER, err: %d", ret);
+			return -EAGAIN;
+		}
+	} else {
+		ret = iio_read_channel_processed(chan_iio_channel, &val);
+		if (ret < 0) {
+			pr_info("'%s' read fail, err: %d",
+					channel_name,
+					ret);
+			return ret;
+		} else {
+			pr_info("'%s' read success, val: %d",
+					channel_name,
+					val);
+		}
+	}
+
+	*value_out = val;
+
+	return ret;
 }
 
 /**

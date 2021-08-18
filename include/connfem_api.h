@@ -66,6 +66,7 @@ struct connfem_epaelna_laa_pin {
 };
 
 struct connfem_epaelna_laa_pin_info {
+	unsigned int chip_id;
 	unsigned int count;
 	struct connfem_epaelna_laa_pin pin[CONNFEM_EPAELNA_LAA_PIN_COUNT];
 };
