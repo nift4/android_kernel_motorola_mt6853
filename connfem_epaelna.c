@@ -739,7 +739,7 @@ void cfm_epaelna_flags_dump(enum connfem_subsys subsys,
 {
 	unsigned int cnt = 0;
 
-	if (subsys == CONNFEM_SUBSYS_NONE)
+	if (subsys <= CONNFEM_SUBSYS_NONE || subsys >= CONNFEM_SUBSYS_NUM)
 		return;
 
 	if (!flags) {

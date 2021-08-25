@@ -141,7 +141,7 @@ EXPORT_SYMBOL(connfem_epaelna_laa_get_pin_info);
 
 int connfem_epaelna_get_flags(enum connfem_subsys subsys, void *flags)
 {
-	if (subsys >= CONNFEM_SUBSYS_NUM) {
+	if (subsys <= CONNFEM_SUBSYS_NONE || subsys >= CONNFEM_SUBSYS_NUM) {
 		pr_info("[WARN] %s, invalid subsys %d",
 			__func__, subsys);
 		return -EINVAL;
@@ -189,7 +189,7 @@ EXPORT_SYMBOL(connfem_epaelna_get_flags);
 int connfem_epaelna_get_flags_names(enum connfem_subsys subsys,
 			unsigned int *num_flags, char ***names)
 {
-	if (subsys >= CONNFEM_SUBSYS_NUM) {
+	if (subsys <= CONNFEM_SUBSYS_NONE || subsys >= CONNFEM_SUBSYS_NUM) {
 		pr_info("[WARN] %s, invalid subsys %d",
 			__func__, subsys);
 		return -EINVAL;

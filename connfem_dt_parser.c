@@ -882,13 +882,21 @@ static int cfm_dt_epaelna_pctl_state_parse(
 		struct cfm_dt_epaelna_pctl_state_context *pstate)
 {
 	int err = 0;
-	int i;
+	int i, c;
 
 	/* Locate pinctrl state index */
-	snprintf(pstate->name, sizeof(pstate->name),
-		 "%s_%s",
-		 fem_info->part_name[CONNFEM_PORT_WFG],
-		 fem_info->part_name[CONNFEM_PORT_WFA]);
+	c = snprintf(pstate->name, sizeof(pstate->name),
+		     "%s_%s",
+		     fem_info->part_name[CONNFEM_PORT_WFG],
+		     fem_info->part_name[CONNFEM_PORT_WFA]);
+	if (c < 0 || c >= sizeof(pstate->name)) {
+		pr_info("[WARN] pinctrl state name error %d, sz %u, '%s'_'%s'",
+			c,
+			(unsigned int)sizeof(pstate->name),
+			fem_info->part_name[CONNFEM_PORT_WFG],
+			fem_info->part_name[CONNFEM_PORT_WFA]);
+		return -EINVAL;
+	}
 
 	err = cfm_dt_epaelna_pctl_state_find(dn,
 					     pstate->name,
@@ -897,9 +905,17 @@ static int cfm_dt_epaelna_pctl_state_parse(
 		return err;	/* -ENOENT, -EINVAL */
 
 	/* Collect pinctrl nodes */
-	snprintf(pstate->prop_name, sizeof(pstate->prop_name),
+	c = snprintf(pstate->prop_name, sizeof(pstate->prop_name),
 		 "%s%d",
 		 CFM_DT_PROP_PINCTRL_PREFIX, pstate->index);
+	if (c < 0 || c >= sizeof(pstate->prop_name)) {
+		pr_info("[WARN] pinctrl prop name error %d, sz %u, '%s%d'",
+			c,
+			(unsigned int)sizeof(pstate->prop_name),
+			CFM_DT_PROP_PINCTRL_PREFIX,
+			pstate->index);
+		return -EINVAL;
+	}
 
 	err = of_property_count_u32_elems(dn, pstate->prop_name);
 	if (err <= 0) {
@@ -1259,16 +1275,24 @@ static int cfm_dt_epaelna_flags_parse(
 		unsigned int hwid,
 		struct cfm_dt_epaelna_flags_context *flags_out)
 {
-	int i;
+	int i, c;
 	struct device_node *subsys_np;
 	struct cfm_dt_epaelna_flags_context flags;
 
 	memset(&flags, 0, sizeof(flags));
 
 	/* Flags node name is based on hwid, it's the same for all subsys */
-	snprintf(flags.node_name, sizeof(flags.node_name),
+	c = snprintf(flags.node_name, sizeof(flags.node_name),
 		 "%s%d",
 		 CFM_DT_PROP_FLAGS_PREFIX, hwid);
+	if (c < 0 || c >= sizeof(flags.node_name)) {
+		pr_info("[WARN] flag node name error %d, sz %u, '%s%d'",
+			c,
+			(unsigned int)sizeof(flags.node_name),
+			CFM_DT_PROP_FLAGS_PREFIX,
+			hwid);
+		return -EINVAL;
+	}
 
 	/* Collect subsys' flags node if valid */
 	for (i = 0; i < CONNFEM_SUBSYS_NUM; i++) {
