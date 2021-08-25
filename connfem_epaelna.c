@@ -721,8 +721,8 @@ void cfm_epaelna_laainfo_dump(struct connfem_epaelna_laa_pin_info *laa)
 		return;
 	}
 
-	pr_info("LaaInfo, count:%d, max:%d, id:0x%x",
-		laa->count, CONNFEM_EPAELNA_LAA_PIN_COUNT, laa->chip_id);
+	pr_info("LaaInfo, count:%d, max:%d",
+		laa->count, CONNFEM_EPAELNA_LAA_PIN_COUNT);
 
 	for (i = 0; i < laa->count; i++) {
 		pr_info("LaaInfo, [%d]gpio:%d,wf:%d,md:%d",
@@ -739,7 +739,7 @@ void cfm_epaelna_flags_dump(enum connfem_subsys subsys,
 {
 	unsigned int cnt = 0;
 
-	if (subsys == CONNFEM_SUBSYS_NONE)
+	if (subsys <= CONNFEM_SUBSYS_NONE || subsys >= CONNFEM_SUBSYS_NUM)
 		return;
 
 	if (!flags) {
