@@ -693,7 +693,11 @@ void cfm_epaelna_feminfo_dump(struct connfem_epaelna_fem_info *fem_info)
 
 void cfm_epaelna_pininfo_dump(struct connfem_epaelna_pin_info *pin_info)
 {
-	int i;
+	int i, c;
+	/* Multiply by 5 to align the maximum size like "0xcc," in fem log */
+	char antsel_log[(CONNFEM_EPAELNA_PIN_COUNT * 5) + 1] = {0};
+	char fem_log[(CONNFEM_EPAELNA_PIN_COUNT * 5) + 1] = {0};
+	char polarity_log[(CONNFEM_EPAELNA_PIN_COUNT * 5) + 1] = {0};
 
 	if (!pin_info) {
 		pr_info("PinInfo, (null)");
@@ -704,11 +708,39 @@ void cfm_epaelna_pininfo_dump(struct connfem_epaelna_pin_info *pin_info)
 		pin_info->count, CONNFEM_EPAELNA_PIN_COUNT);
 
 	for (i = 0; i < pin_info->count; i++) {
-		pr_info("PinInfo, [%d]antsel:%d,fem:0x%02x,polarity:%d",
-			i,
-			pin_info->pin[i].antsel,
-			pin_info->pin[i].fem,
+		c = snprintf(antsel_log, sizeof(antsel_log),
+			"%s%4d,",
+			antsel_log,
+			pin_info->pin[i].antsel);
+		if (c < 0 || c >= sizeof(antsel_log)) {
+			pr_info("[WARN] c:%d,ant_log size:%zu",
+				c,
+				sizeof(antsel_log));
+		}
+		c = snprintf(fem_log, sizeof(fem_log),
+			"%s0x%02x,",
+			fem_log,
+			pin_info->pin[i].fem);
+		if (c < 0 || c >= sizeof(fem_log)) {
+			pr_info("[WARN] c:%d,fem_log size:%zu",
+				c,
+				sizeof(fem_log));
+		}
+		c = snprintf(polarity_log, sizeof(polarity_log),
+			"%s%4d,",
+			polarity_log,
 			pin_info->pin[i].polarity);
+		if (c < 0 || c >= sizeof(polarity_log)) {
+			pr_info("[WARN] c:%d,pol_log size:%zu",
+				c,
+				sizeof(polarity_log));
+		}
+	}
+
+	if (pin_info->count > 0) {
+		pr_info("ant:%s", antsel_log);
+		pr_info("fem:%s", fem_log);
+		pr_info("pol:%s", polarity_log);
 	}
 }
 
