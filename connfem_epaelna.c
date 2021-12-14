@@ -695,9 +695,12 @@ void cfm_epaelna_pininfo_dump(struct connfem_epaelna_pin_info *pin_info)
 {
 	int i, c;
 	/* Multiply by 5 to align the maximum size like "0xcc," in fem log */
-	char antsel_log[(CONNFEM_EPAELNA_PIN_COUNT * 5) + 1] = {0};
+	char ant_log[(CONNFEM_EPAELNA_PIN_COUNT * 5) + 1] = {0};
 	char fem_log[(CONNFEM_EPAELNA_PIN_COUNT * 5) + 1] = {0};
-	char polarity_log[(CONNFEM_EPAELNA_PIN_COUNT * 5) + 1] = {0};
+	char pol_log[(CONNFEM_EPAELNA_PIN_COUNT * 5) + 1] = {0};
+	int ant_pos = 0;
+	int fem_pos = 0;
+	int pol_pos = 0;
 
 	if (!pin_info) {
 		pr_info("PinInfo, (null)");
@@ -708,39 +711,65 @@ void cfm_epaelna_pininfo_dump(struct connfem_epaelna_pin_info *pin_info)
 		pin_info->count, CONNFEM_EPAELNA_PIN_COUNT);
 
 	for (i = 0; i < pin_info->count; i++) {
-		c = snprintf(antsel_log, sizeof(antsel_log),
-			"%s%4d,",
-			antsel_log,
+		if (ant_pos >= sizeof(ant_log) - 1) {
+			pr_info("[WARN] ant_pos:%d >= ant_log size:%zu",
+				ant_pos,
+				sizeof(ant_log) - 1);
+				break;
+		}
+		c = snprintf(ant_log + ant_pos, sizeof(ant_log) - ant_pos,
+			"%4d,",
 			pin_info->pin[i].antsel);
-		if (c < 0 || c >= sizeof(antsel_log)) {
+		if (c < 0 || c >= sizeof(ant_log) - ant_pos) {
 			pr_info("[WARN] c:%d,ant_log size:%zu",
 				c,
-				sizeof(antsel_log));
+				sizeof(ant_log));
+				break;
+		} else {
+			ant_pos += c;
 		}
-		c = snprintf(fem_log, sizeof(fem_log),
-			"%s0x%02x,",
-			fem_log,
+
+		if (fem_pos >= sizeof(fem_log) - 1) {
+			pr_info("[WARN] fem_pos:%d > fem_log size:%zu",
+				fem_pos,
+				sizeof(fem_log) - 1);
+				break;
+		}
+		c = snprintf(fem_log + fem_pos, sizeof(fem_log) - fem_pos,
+			"0x%02x,",
 			pin_info->pin[i].fem);
-		if (c < 0 || c >= sizeof(fem_log)) {
+		if (c < 0 || c >= sizeof(fem_log) - fem_pos) {
 			pr_info("[WARN] c:%d,fem_log size:%zu",
 				c,
 				sizeof(fem_log));
+				break;
+		} else {
+			fem_pos += c;
 		}
-		c = snprintf(polarity_log, sizeof(polarity_log),
-			"%s%4d,",
-			polarity_log,
+
+		if (pol_pos >= sizeof(pol_log) - 1) {
+			pr_info("[WARN] pol_pos:%d > pol_log size:%zu",
+				pol_pos,
+				sizeof(pol_log) - 1);
+				break;
+		}
+		c = snprintf(pol_log + pol_pos, sizeof(pol_log) - pol_pos,
+			"%4d,",
 			pin_info->pin[i].polarity);
-		if (c < 0 || c >= sizeof(polarity_log)) {
+		if (c < 0 || c >= sizeof(pol_log) - pol_pos) {
 			pr_info("[WARN] c:%d,pol_log size:%zu",
 				c,
-				sizeof(polarity_log));
+				sizeof(pol_log));
+				break;
+		} else {
+			pol_pos += c;
 		}
 	}
 
 	if (pin_info->count > 0) {
-		pr_info("ant:%s", antsel_log);
+		pr_info("ant:%s", ant_log);
 		pr_info("fem:%s", fem_log);
-		pr_info("pol:%s", polarity_log);
+		pr_info("pol:%s", pol_log);
 	}
 }
 
