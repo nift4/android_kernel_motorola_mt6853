@@ -76,6 +76,9 @@ MODULE_LICENSE("GPL");
 #define COMBO_IOC_GPS_HW_SUSPEND     18
 #define COMBO_IOC_GPS_HW_RESUME      19
 #define COMBO_IOC_GPS_LISTEN_RST_EVT 20
+#define COMBO_IOC_GPS_GET_MD_STATUS  21
+
+static UINT32 md_status_addr;
 
 static UINT32 gDbgLevel = GPS_LOG_DBG;
 
@@ -581,6 +584,8 @@ static int GPS_hw_suspend_ctrl(bool to_suspend, UINT8 mode)
 	tx_buf[0] = to_suspend ? GPS_FWCTL_OPCODE_ENTER_STOP_MODE :
 		GPS_FWCTL_OPCODE_EXIT_STOP_MODE;
 	tx_buf[1] = mode;  /*mode value should be set in mnld, 0: HW suspend mode, 1: clock extension mode*/
+	if (2 == tx_buf[1])
+		GPS_INFO_FUNC("GPS force move code ,mode=%d", tx_buf[1]);
 	tx_len = 2;
 
 	wmt_status = mtk_wmt_gps_mcu_ctrl(&tx_buf[0], tx_len,
@@ -599,7 +604,12 @@ static int GPS_hw_suspend_ctrl(bool to_suspend, UINT8 mode)
 	if (wmt_status != 0 || rx0 != 0) {
 		/* Fail due to WMT fail or FW not support,
 		 * bypass the following operations
+		 * if mode = 2 ,then
+		 * 1.rx0=6(GPS_CTRL_WAKE_FOR_MVCD) is the expected response
+		 * 2.it should be change to opened and waiting libmnl to do MVCD
 		 */
+		if (rx0 == 6 && mode == 2)
+			GPS_ctrl_status_change_from_to(GPS_SUSPENDED, GPS_OPENED);
 		GPS_WARN_FUNC("GPS_hw_suspend_ctrl %d: st=%d, rx_len=%u ([0]=%u, [1]=%u), ms0=%u, ms1=%u, mode=%u",
 			to_suspend, wmt_status, rx_len, rx0, rx1, local_ms0, local_ms1, mode);
 		return -1;
@@ -747,6 +757,7 @@ long GPS_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	UINT32 hw_version = 0;
 	UINT32 fw_version = 0;
 	UINT32 gps_lna_pin = 0;
+	UINT32 md2gps_status = 0;
 
 	pr_info("GPS_ioctl(): cmd (%d)\n", cmd);
 
@@ -904,6 +915,23 @@ long GPS_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		GPS_DBG_FUNC("GPS_ioctl(): get gps lna pin = %d\n", gps_lna_pin);
 		if (copy_to_user((int __user *)arg, &gps_lna_pin, sizeof(gps_lna_pin)))
 			retval = -EFAULT;
+		break;
+	case COMBO_IOC_GPS_GET_MD_STATUS:
+		if (md_status_addr != 0) {
+			do {
+				char *addr = ioremap((phys_addr_t)md_status_addr, 0x4);
+
+				md2gps_status = *(unsigned int *)addr;
+				GPS_INFO_FUNC("MD2GPS_REG (0x%x), md2gps_status=0x%x\n",
+					md_status_addr, md2gps_status);
+				if (copy_to_user((int __user *)arg, &md2gps_status, sizeof(md2gps_status)))
+					retval = -EFAULT;
+				iounmap(addr);
+			} while (0);
+		} else {
+			retval = -EFAULT;
+			GPS_ERR_FUNC("Can't get MD2GPS_REG in this platform\n");
+		}
 		break;
 	default:
 		retval = -EFAULT;
@@ -1151,6 +1179,27 @@ _out:
 	return ret;
 }
 
+int gps_stp_get_reserved_memory_lk(struct device *dev)
+{
+	struct device_node *node;
+
+	node = dev->of_node;
+	if (!node) {
+		pr_info("gps_stp_get_reserved_memory_lk: unable to get gps node\n");
+		return -1;
+	}
+
+	if (of_property_read_u32(node, "b13b14-status-addr", &md_status_addr)) {
+		pr_info("gps_stp_get_reserved_memory_lk: unable to get b13b14-status-addr\n");
+		return -1;
+	}
+
+	pr_info("gps_stp_get_reserved_memory_lk md_status_addr 0x%x\n", md_status_addr);
+
+	return 0;
+
+}
+
 const struct file_operations GPS_fops = {
 	.open = GPS_open,
 	.release = GPS_close,
@@ -1290,6 +1339,8 @@ static int GPS_init(void)
 		pr_info("%s %d: init gps wakeup source fail!", __func__, __LINE__);
 		goto error;
 	}
+
+	md_status_addr = 0;
 
 	sema_init(&status_mtx, 1);
 	sema_init(&fwctl_mtx, 1);

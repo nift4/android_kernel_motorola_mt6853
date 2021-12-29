@@ -58,6 +58,7 @@ enum gps_data_link_id_enum {
 	GPS_DATA_LINK_ID1	= 1,
 	GPS_DATA_LINK_NUM	= 2,
 };
+extern int gps_stp_get_reserved_memory_lk(struct device *dev);
 
 extern void GPS_reference_count(enum gps_reference_count_cmd cmd, bool flag, enum gps_data_link_id_enum user);
 
