@@ -1,15 +1,6 @@
 #
 # Touchscreen driver configuration
 #
-menuconfig INPUT_TOUCHSCREEN
-	bool "Touchscreens"
-	help
-	  Say Y here, and a list of supported touchscreens will be displayed.
-	  This option doesn't affect the kernel.
-
-	  If unsure, say Y.
-
-if INPUT_TOUCHSCREEN
 
 config TOUCHSCREEN_MTK
 	bool "MediaTek Touch Panel Driver"
@@ -267,5 +258,3 @@ config TOUCHSCREEN_MTK_TYPE
 	  Say y here if use mediatek touch type.
 
 	  If unsure, say N.
-
-endif

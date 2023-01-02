@@ -3,15 +3,13 @@
 #
 
 config TOUCHSCREEN_FT3518U
-    bool "Focaltech Touchscreen"
-    default n
-    help
-      Say Y here if you have Focaltech touch panel.
-      If unsure, say N.
+      bool "Focaltech Touchscreen"
+      default n
+      help
+        Say Y here if you have Focaltech touch panel.
+        If unsure, say N.
 
 config TOUCHSCREEN_FTS_DIRECTORY
-    string "Focaltech ts directory name"
-    default "focaltech_touch"
-    depends on TOUCHSCREEN_FT3518U
-
-
+      string "Focaltech ts directory name"
+      default "focaltech_touch"
+      depends on TOUCHSCREEN_FT3518U
