@@ -1,15 +1,6 @@
 #
 # Touchscreen driver configuration
 #
-menuconfig INPUT_TOUCHSCREEN
-	bool "Touchscreens"
-	help
-	  Say Y here, and a list of supported touchscreens will be displayed.
-	  This option doesn't affect the kernel.
-
-	  If unsure, say Y.
-
-if INPUT_TOUCHSCREEN
 
 config TOUCHSCREEN_MTK
 	bool "MediaTek Touch Panel Driver"
@@ -223,17 +214,4 @@ config TOUCHSCREEN_MTK_TYPE
 
 	  If unsure, say N.
 
-config TOUCHSCREEN_GOODIX_GTX8
-	bool "goodix for Mediatek package"
-	default n
-	help
-	  Say Y here if you have goodix touch panel.
-
-	  If unsure, say N.
-
-	  To compile this dirver as a module, choose M here: the
-	  module will be called.
-
 source "drivers/input/touchscreen/mediatek/goodix-ts-sunrise/Kconfig"
-
-endif
