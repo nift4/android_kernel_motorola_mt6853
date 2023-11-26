@@ -1,0 +1,2 @@
+config ABOV_SAR_MMI_OVERLAY_7CH
+    tristate "ABOV SAR MMI Overlay 7ch"
