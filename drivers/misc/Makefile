@@ -60,3 +60,4 @@ obj-$(CONFIG_OCXL)		+= ocxl/
 obj-$(CONFIG_MISC_RTSX)		+= cardreader/
 obj-$(CONFIG_UID_SYS_STATS)	+= uid_sys_stats.o
 obj-y				+= mediatek/
+obj-$(CONFIG_ABOV_SAR_MMI_OVERLAY_7CH) += abov_mmi_overlay_7ch/
