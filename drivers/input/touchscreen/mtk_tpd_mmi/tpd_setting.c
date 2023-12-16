@@ -11,7 +11,7 @@
  * See http://www.gnu.org/licenses/gpl-2.0.html for more details.
  */
 
-#include <linux/input/tpd.h>
+#include <tpd.h>
 
 unsigned long TPD_RES_X = 480;
 unsigned long TPD_RES_Y = 800;

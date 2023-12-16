@@ -11,7 +11,7 @@
  * See http://www.gnu.org/licenses/gpl-2.0.html for more details.
  */
 
-#include <linux/input/tpd.h>
+#include <tpd.h>
 
 /* #ifdef TPD_HAVE_BUTTON */
 /* static int tpd_keys[TPD_KEY_COUNT] = TPD_KEYS; */

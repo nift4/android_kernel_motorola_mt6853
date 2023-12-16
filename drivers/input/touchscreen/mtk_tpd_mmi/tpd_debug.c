@@ -17,7 +17,7 @@
 #include <linux/miscdevice.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
-#include <linux/input/tpd.h>
+#include <tpd.h>
 #include "met_ftrace_touch.h"
 
 #ifdef TPD_DEBUG_CODE

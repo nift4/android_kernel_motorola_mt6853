@@ -10,7 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See http://www.gnu.org/licenses/gpl-2.0.html for more details.
  */
-#include <linux/input/tpd.h>
+#include <tpd.h>
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/miscdevice.h>

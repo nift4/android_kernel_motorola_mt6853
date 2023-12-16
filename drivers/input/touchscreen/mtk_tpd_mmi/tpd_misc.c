@@ -11,7 +11,7 @@
  * See http://www.gnu.org/licenses/gpl-2.0.html for more details.
  */
 
-#include <linux/input/tpd.h>
+#include <tpd.h>
 
 int tpd_calibrate_en;
 module_param(tpd_calibrate_en, int, 0664);
