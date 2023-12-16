@@ -1,0 +1,2 @@
+config QPNP_ADAPTIVE_CHARGE
+    tristate "qpnp adaptive charge"
