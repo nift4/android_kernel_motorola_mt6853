@@ -11,7 +11,7 @@
  * See http://www.gnu.org/licenses/gpl-2.0.html for more details.
  */
 
-#include <linux/input/tpd.h>
+#include <tpd.h>
 /* #ifdef TPD_HAVE_CALIBRATION */
 
 /* #ifndef TPD_CUSTOM_CALIBRATION */

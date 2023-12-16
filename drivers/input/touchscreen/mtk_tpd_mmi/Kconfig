@@ -1,0 +1,2 @@
+config MTK_TPD_MMI
+    tristate "MTK TPD motorola"
