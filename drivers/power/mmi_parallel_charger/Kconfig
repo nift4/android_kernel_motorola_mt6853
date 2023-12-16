@@ -1,0 +1,2 @@
+config MMI_PARALLEL_CHARGER
+    tristate "MMI Parallel Charger"

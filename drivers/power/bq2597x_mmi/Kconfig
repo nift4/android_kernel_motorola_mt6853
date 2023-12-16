@@ -1,0 +1,2 @@
+config BQ2597X_MMI
+    tristate "Bq2567x motorola driver"
