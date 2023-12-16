@@ -192,3 +192,4 @@ obj-$(CONFIG_SIOX)		+= siox/
 obj-$(CONFIG_GNSS)		+= gnss/
 obj-$(CONFIG_INTERCONNECT)     += interconnect/
 obj-$(CONFIG_SENSOR_CLASS) += sensors/
+obj-$(CONFIG_MMI_INFO) += mmi_info/

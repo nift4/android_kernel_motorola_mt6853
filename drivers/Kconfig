@@ -294,4 +294,6 @@ source "drivers/energy_model/Kconfig"
 
 source "drivers/sensors/Kconfig"
 
+source "drivers/mmi_info/Kconfig"
+
 endmenu
