@@ -1,10 +1,5 @@
-KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
-
-all:
-	$(MAKE) -C $(KERNEL_SRC) M=$(shell pwd) modules $(KBUILD_OPTIONS)
-
-modules_install:
-	$(MAKE) INSTALL_MOD_STRIP=1 -C $(KERNEL_SRC) M=$(shell pwd) modules_install
-
-clean:
-	$(MAKE) -C $(KERNEL_SRC) M=$(PWD) clean
+ifneq ($(filter m y,$(CONFIG_MMI_RELAY)),)
+	EXTRA_CFLAGS += -DMMI_RELAY_MODULE
+endif
+goodix_mtk_tee-y += gf_spi_tee.o gf_spi_factory.o
+obj-$(CONFIG_INPUT_GOODIX_FPS) += goodix_mtk_tee.o
