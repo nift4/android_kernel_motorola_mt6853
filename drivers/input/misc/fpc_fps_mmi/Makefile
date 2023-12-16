@@ -1,4 +1,3 @@
-include $(wildcard $(KERNEL_SRC)/$(DEVICE_MODULES_REL_DIR)/Makefile.include)
-
-modules modules_install clean:
-	$(MAKE) -C $(KERNEL_SRC) M=$(M) $(KBUILD_OPTIONS) KBUILD_EXTRA_SYMBOLS="$(EXTRA_SYMBOLS)" $(@)
+ccflags-y += -DCONFIG_INPUT_MISC_FPC1020_SAVE_TO_CLASS_DEVICE
+fpc_mtk_tee-y += fpc_tee_spi.o
+obj-$(CONFIG_INPUT_FPC_FPS_MMI) += fpc_mtk_tee.o
