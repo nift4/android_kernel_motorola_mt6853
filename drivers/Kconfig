@@ -296,4 +296,6 @@ source "drivers/sensors/Kconfig"
 
 source "drivers/mmi_info/Kconfig"
 
+source "drivers/moto_f_usbnet/Kconfig"
+
 endmenu
