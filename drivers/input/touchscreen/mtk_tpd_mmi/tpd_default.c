@@ -11,7 +11,7 @@
  * See http://www.gnu.org/licenses/gpl-2.0.html for more details.
  */
 
-#include <linux/input/tpd.h>
+#include <tpd.h>
 
 /* #ifndef TPD_CUSTOM_TREMBLE_TOLERANCE */
 int tpd_trembling_tolerance(int t, int p)

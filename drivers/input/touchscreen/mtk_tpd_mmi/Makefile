@@ -1,10 +1,8 @@
-KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
-
-all:
-	$(MAKE) -C $(KERNEL_SRC) M=$(shell pwd) modules $(KBUILD_OPTIONS)
-
-modules_install:
-	$(MAKE) INSTALL_MOD_STRIP=1 -C $(KERNEL_SRC) M=$(shell pwd) modules_install
-
-clean:
-	$(MAKE) -C $(KERNEL_SRC) M=$(PWD) clean
+ccflags-y += -I$(srctree)/drivers/input/touchscreen/mediatek/
+obj-$(CONFIG_MTK_TPD_MMI) := mtk_tpd_mmi.o
+mtk_tpd_mmi-objs += mtk_tpd.o
+mtk_tpd_mmi-objs += tpd_button.o
+mtk_tpd_mmi-objs += tpd_calibrate.o
+mtk_tpd_mmi-objs += tpd_default.o
+mtk_tpd_mmi-objs += tpd_misc.o
+mtk_tpd_mmi-objs += tpd_setting.o
