@@ -1,0 +1,2 @@
+config SENSOR_CLASS
+    tristate "Sensor class driver"
