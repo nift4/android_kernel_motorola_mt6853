@@ -188,3 +188,4 @@ obj-$(CONFIG_TRUSTY)	+= trusty/
 obj-$(CONFIG_GNSS)		+= gnss/
 obj-$(CONFIG_SENSOR_CLASS) += sensors/
 obj-$(CONFIG_MMI_INFO) += mmi_info/
+obj-$(CONFIG_MOTO_F_USBNET) += moto_f_usbnet/
