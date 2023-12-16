@@ -1,0 +1,2 @@
+config INPUT_GOODIX_FPS
+    tristate "Goodix FP sensor"
