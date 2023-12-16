@@ -62,7 +62,7 @@
 #include <linux/kthread.h>
 #include <linux/dma-mapping.h>
 #include "focaltech_common.h"
-#include <linux/input/tpd.h>
+#include <tpd.h>
 #ifdef FTS_USB_DETECT_EN
 #include <linux/power_supply.h>
 #endif
