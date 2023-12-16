@@ -1,0 +1,2 @@
+config INPUT_FPC_FPS_MMI
+    tristate "FingerPrint Cards FP sensor motorola driver"
