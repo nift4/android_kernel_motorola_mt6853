@@ -863,3 +863,5 @@ config INPUT_HISI_POWERKEY
 endif
 
 source "drivers/input/misc/fpc_fps_mmi/Kconfig"
+
+source "drivers/input/misc/goodix_fps/Kconfig"
