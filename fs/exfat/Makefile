@@ -1,10 +1,3 @@
-KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
-
-all:
-	$(MAKE) -C $(KERNEL_SRC) M=$(shell pwd) modules $(KBUILD_OPTIONS)
-
-modules_install:
-	$(MAKE) INSTALL_MOD_STRIP=1 -C $(KERNEL_SRC) M=$(shell pwd) modules_install
-
-clean:
-	$(MAKE) -C $(KERNEL_SRC) M=$(PWD) clean
+exfat-y := exfat_core.o exfat_super.o exfat_api.o exfat_blkdev.o exfat_cache.o \
+         exfat_data.o exfat_bitmap.o exfat_nls.o exfat_oal.o exfat_upcase.o
+obj-$(CONFIG_EXFAT_FS) += exfat.o
