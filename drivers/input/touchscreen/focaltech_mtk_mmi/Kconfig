@@ -1,0 +1,2 @@
+config FOCALTECH_MTK_MMI
+    tristate "FocalTech MediaTek Motorola touch screen"
