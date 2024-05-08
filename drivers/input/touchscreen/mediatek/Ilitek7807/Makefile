@@ -1,4 +1,3 @@
-ccflags-y += -Wall
 
 ccflags-y += -I$(srctree)/drivers/spi/mediatek/mt6797/
 ccflags-y += -I$(srctree)/drivers/input/touchscreen/mediatek/ILITEK_V3/
