@@ -43,20 +43,22 @@ else
 obj-  := dummy.o # avoid build error
 endif
 
-ifneq (,$(findstring saipan, $(strip $(TARGET_PRODUCT))))
+ifneq (,$(findstring saipan, $(strip $(ARCH_MTK_PRODUCT))))
 ccflags-y += -DSAIPAN_SWTP_CONFIG
 endif
 
-ifneq (,$(findstring austin, $(strip $(TARGET_PRODUCT))))
+ifneq (,$(findstring austin, $(strip $(ARCH_MTK_PRODUCT))))
 ccflags-y += -DAUSTIN_SWTP_CONFIG
 endif
 
 # Add for Kyoto special swtp logic
-ifneq (,$(findstring kyoto, $(strip $(TARGET_PRODUCT))))
+ifeq (,$(findstring k6853v1_64_6360, $(strip $(ARCH_MTK_PRODUCT))))
 ccflags-y += -DKYOTO_SWTP_CUST
+else
+$(warning this is not kyoto)
 endif
 
 # Add for corfu series
-ifeq ($(filter corfu cofud coful milan,$(TARGET_PRODUCT)),)
+ifeq ($(filter corfu cofud coful milan,$(ARCH_MTK_PRODUCT)),)
 ccflags-y += -DSWTP_GPIO_STATE_CUST
 endif
