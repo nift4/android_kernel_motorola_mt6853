@@ -464,16 +464,6 @@ config ARM64_ERRATUM_1024718
 
 	  If unsure, say Y.
 
-config ARM64_ERRATUM_1542418
-	bool "Cortex-A77: 1542418: The core might fetch a stale instruction from the L0 Macro-op"
-	default n
-	help
-	  This option adds work around for Arm Cortex-A77 Erratum 1542418.
-
-	  Affected Cortex-A77 cores (r0p0, r1p0) could cause the core might
-	  fetch a stale instructions from the L0 Macro-op cache which violates
-	  the ordefing of instruction fetches.
-
 config ARM64_ERRATUM_1188873
 	bool "Cortex-A76: MRC read following MRRC read of specific Generic Timer in AArch32 might give incorrect result"
 	default y
