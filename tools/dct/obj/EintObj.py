@@ -514,9 +514,7 @@ class EintObj_MT6853(EintObj_MT6885):
             gen_str += '''\tinterrupts = <%s %s>;\n''' % (key[4:], temp)
             if cmp(value.get_debounceEnable(), 'Enable') == 0:
                 gen_str += '''\tdeb-gpios = <&pio %s 0>;\n''' % (self.refGpio(key[4:], True)[0])
-                # from MT6885, only 0 ~ 31 eint gen debounce time item
-                if int(key[4:]) < 32:
-                    gen_str += '''\tdebounce = <%d>;\n''' % (string.atoi(value.get_debounceTime()) * 1000)
+                gen_str += '''\tdebounce = <%d>;\n''' % (string.atoi(value.get_debounceTime()) * 1000)
             gen_str += '''\tstatus = \"okay\";\n'''
             gen_str += '''};\n'''
             gen_str += '''\n'''
