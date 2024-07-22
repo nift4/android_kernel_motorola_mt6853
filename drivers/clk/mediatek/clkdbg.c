@@ -406,9 +406,6 @@ static u32 read_spm_pwr_status(void)
 
 static s32 *read_spm_pwr_status_array(void)
 {
-	static void __iomem *scpsys_base, *pwr_sta, *pwr_sta_2nd;
-	static int pwr_sta_val[STA_NUM];
-
 	if (clkdbg_ops == NULL || clkdbg_ops->get_spm_pwr_status_array  == NULL)
 		return  ERR_PTR(-EINVAL);
 
@@ -467,7 +464,7 @@ static bool pvdck_pwr_is_on(struct provider_clk *pvdck, u32 *spm_pwr_status, int
 	struct clk_hw *c_hw = __clk_get_hw(c);
 
 	if (array_size == 1)
-		return clk_hw_pwr_sta_is_on(c_hw, spm_pwr_status, pvdck);
+		return clk_hw_pwr_sta_is_on(c_hw, *spm_pwr_status, pvdck);
 
 	return clk_hw_pwr_is_on(c_hw, spm_pwr_status, pvdck);
 }
@@ -734,6 +731,7 @@ const char *get_last_cmd(void)
 	return last_cmd;
 }
 
+#if defined(CONFIG_MTK_ENG_BUILD)
 static int clkop_int_ckname(int (*clkop)(struct clk *clk),
 			const char *clkop_name, const char *clk_name,
 			struct clk *ck, struct seq_file *s)
@@ -880,6 +878,7 @@ static int clkdbg_disable_unprepare(struct seq_file *s, void *v)
 	return clkdbg_clkop_void_ckname(clk_disable_unprepare,
 					"clk_disable_unprepare", s, v);
 }
+#endif
 
 void prepare_enable_provider(const char *pvd)
 {
@@ -909,6 +908,7 @@ void disable_unprepare_provider(const char *pvd)
 	}
 }
 
+#if defined(CONFIG_MTK_ENG_BUILD)
 static void clkpvdop(void (*pvdop)(const char *), const char *clkpvdop_name,
 			struct seq_file *s)
 {
@@ -1176,6 +1176,7 @@ static int clkdbg_reg_clr(struct seq_file *s, void *v)
 
 	return 0;
 }
+#endif
 
 static int parse_val_from_cmd(unsigned long *pval)
 {
@@ -1943,9 +1944,9 @@ static struct save_point save_point_1;
 static struct save_point save_point_2;
 static struct save_point save_point_3;
 
-static void save_pwr_status(u32 spm_pwr_status)
+static void save_pwr_status(u32 *spm_pwr_status)
 {
-	spm_pwr_status = read_spm_pwr_status();
+	*spm_pwr_status = read_spm_pwr_status();
 }
 
 static void save_all_clks_state(struct provider_clk_state *clks_states,
@@ -2019,8 +2020,8 @@ static void show_save_point(struct save_point *sp)
 
 static void store_save_point(struct save_point *sp)
 {
-	save_pwr_status(sp->spm_pwr_status);
-	save_all_clks_state(sp->clks_states, sp->spm_pwr_status);
+	save_pwr_status(&sp->spm_pwr_status);
+	save_all_clks_state(sp->clks_states, &sp->spm_pwr_status);
 
 #if CLKDBG_PM_DOMAIN
 	save_all_genpd_state(sp->genpd_states, sp->genpd_dev_states);

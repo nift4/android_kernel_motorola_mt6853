@@ -219,7 +219,7 @@ static void mtk8250_dma_enable(struct uart_8250_port *up)
 {
 	struct uart_8250_dma *dma = up->dma;
 	struct mtk8250_data *data = up->port.private_data;
-	int lcr = serial_in(up, UART_LCR);
+	serial_in(up, UART_LCR);
 
 	if (data->rx_status != DMA_RX_START)
 		return;

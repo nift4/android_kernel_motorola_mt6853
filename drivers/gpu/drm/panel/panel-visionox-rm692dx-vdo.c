@@ -841,6 +841,7 @@ static int mode_switch(struct drm_panel *panel, unsigned int cur_mode,
         return ret;
 }
 
+/*
 static int panel_cabc_set_cmdq(struct drm_panel *panel, void *dsi,
 			      dcs_write_gce cb, void *handle, unsigned int cabc_mode)
 {
@@ -866,6 +867,7 @@ static int panel_cabc_set_cmdq(struct drm_panel *panel, void *dsi,
 done:
 	return 0;
 }
+*/
 
 static void panel_cabc_get_state(struct drm_panel *panel, unsigned int *cabc_mode)
 {

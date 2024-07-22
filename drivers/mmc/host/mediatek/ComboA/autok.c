@@ -3524,7 +3524,9 @@ int execute_online_tuning_hs400(struct msdc_host *host, u8 *res)
 	int err = 0;
 	unsigned int response;
 	unsigned int uCmdEdge = 0;
+#ifdef SUPPORT_NEW_TX_NEW_RX
 	unsigned int uDatEdge = 0;
+#endif
 	u64 RawData64 = 0LL;
 	unsigned int score = 0;
 	unsigned int j, k, cycle_value;

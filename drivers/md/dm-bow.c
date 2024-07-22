@@ -4,6 +4,7 @@
  * This file is released under the GPL.
  */
 
+#define SECTOR_SIZE 512
 #include "dm.h"
 #include "dm-bufio.h"
 #include "dm-core.h"
@@ -12,7 +13,6 @@
 #include <linux/module.h>
 
 #define DM_MSG_PREFIX "bow"
-#define SECTOR_SIZE 512
 
 struct log_entry {
 	u64 source;

@@ -390,9 +390,7 @@ void mmi_chrg_policy_clear(struct mmi_charger_manager *chip) {
 static bool is_cable_plugout(struct mmi_charger_manager *chip)
 {
 	struct mmi_cp_policy_dev *chrg_list = &g_chrg_list;
-	union power_supply_propval prop = {0,};
-	int rc, vbus_volt, ibatt_curr, ibus_curr, vbatt_volt;
-	bool pd_active = 0;
+	int vbus_volt, ibatt_curr, ibus_curr, vbatt_volt;
 
 	if (chip->extrn_sense) {
 		ibatt_curr = chrg_list->chrg_dev[CP_MASTER]->charger_data.ibatt_curr;

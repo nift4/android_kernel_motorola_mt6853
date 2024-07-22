@@ -1490,6 +1490,7 @@ unlock:
 }
 EXPORT_SYMBOL(drm_fb_helper_ioctl);
 
+#if 0
 static bool drm_fb_pixel_format_equal(const struct fb_var_screeninfo *var_1,
 				      const struct fb_var_screeninfo *var_2)
 {
@@ -1508,6 +1509,7 @@ static bool drm_fb_pixel_format_equal(const struct fb_var_screeninfo *var_1,
 	       var_1->transp.length == var_2->transp.length &&
 	       var_1->transp.msb_right == var_2->transp.msb_right;
 }
+#endif
 
 static void drm_fb_helper_fill_pixel_fmt(struct fb_var_screeninfo *var,
 					 u8 depth)

@@ -14,6 +14,7 @@
 
 #ifndef __MTU3_HAL__
 #define __MTU3_HAL__
+#include "mtu3.h"
 
 enum {
 	USB_DPIDLE_ALLOWED = 0,

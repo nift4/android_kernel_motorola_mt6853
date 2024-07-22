@@ -6676,67 +6676,6 @@ out:
 #if defined(CONFIG_UFSFEATURE) && defined(CONFIG_UFSHPB)
 static void ufshcd_add_hpb_info_sysfs_node(struct ufs_hba *hba);
 
-static void SEC_ufs_update_hpb_info(struct ufs_hba *hba, int read_transfer_len)
-{
-	struct SEC_UFS_HPB_info *hpb_info = &(hba->SEC_hpb_info);
-
-	if (hpb_info->hpb_info_disable)
-		return;
-
-	/*
-	 * read_transfer_len : Byte
-	 * hpb_info->hpb_amount_R_kb : KB
-	 */
-	hpb_info->hpb_amount_R_kb += (unsigned long)(read_transfer_len >> 10);
-	if (unlikely((s64)hpb_info->hpb_amount_R_kb < 0))
-		goto disable_hpb_info;
-	return;
-
-disable_hpb_info:
-	hpb_info->hpb_info_disable = true;
-	return;
-}
-
-#define SEC_UFS_HPB_ERR_check(hpb_info, member) ({		\
-		(hpb_info)->member++;				\
-		if ((hpb_info)->member == UINT_MAX) 		\
-			(hpb_info)->hpb_err_count_disable = true; })
-
-static void SEC_ufs_hpb_error_check(struct ufs_hba *hba, struct scsi_cmnd *cmd)
-{
-	struct SEC_UFS_HPB_info *hpb_info = &(hba->SEC_hpb_info);
-
-	u8 cmd_opcode = cmd->cmnd[0];
-	u8 cmd_id = cmd->cmnd[1];
-
-	if (hpb_info->hpb_err_count_disable)
-		return;
-
-	switch (cmd_opcode) {
-	case READ_16:
-		SEC_UFS_HPB_ERR_check(hpb_info, hpb_read_err_count);
-		break;
-	case UFSHPB_READ_BUFFER:
-		if (cmd_id == UFSHPB_RB_ID_READ)
-			SEC_UFS_HPB_ERR_check(hpb_info, hpb_RB_ID_READ_err_count);
-		else if (cmd_id == UFSHPB_RB_ID_SET_RT)
-			SEC_UFS_HPB_ERR_check(hpb_info, hpb_RB_ID_SET_RT_err_count);
-		break;
-	case UFSHPB_WRITE_BUFFER:
-		if (cmd_id == UFSHPB_WB_ID_PREFETCH)
-			SEC_UFS_HPB_ERR_check(hpb_info, hpb_WB_ID_PREFETCH_err_count);
-		else if (cmd_id == UFSHPB_WB_ID_UNSET_RT)
-			SEC_UFS_HPB_ERR_check(hpb_info, hpb_WB_ID_UNSET_RT_err_count);
-		else if (cmd_id == UFSHPB_WB_ID_UNSET_RT_ALL)
-			SEC_UFS_HPB_ERR_check(hpb_info, hpb_WB_ID_UNSET_RT_ALL_err_count);
-		break;
-	default:
-		break;
-	}
-
-	return;
-}
-
 void SEC_ufs_hpb_rb_count(struct ufs_hba *hba, struct ufshpb_region *rgn)
 {
        if (rgn->rgn_state == HPBREGION_PINNED ||

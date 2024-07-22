@@ -936,7 +936,6 @@ static void ufshpb_update_active_info_by_read(struct ufshpb_lu *hpb,
 	bool is_update = false;
 	unsigned int start_lpn, end_lpn;
 	unsigned long flags;
-	struct victim_select_info *lru_info = &hpb->lru_info;
 	//long long miss_after_region_full,hit_after_region_full,total_access_region_after_region_full;
 
 	start_lpn = ufshpb_get_lpn(rq);
@@ -983,15 +982,13 @@ static void ufshpb_update_inactive_info_by_write_discard(struct ufshpb_lu *hpb,
 						struct scsi_cmnd *cmd)
 {
 	struct ufshpb_region *rgn;
-	struct ufshpb_subregion *srgn;
 	struct request *rq = cmd->request;
 	int s_rgn_idx, s_srgn_idx, s_offset;
 	int e_rgn_idx, e_srgn_idx, e_offset;
-	int rgn_idx,srgn_idx;
+	int rgn_idx;
 	bool is_update = false;
 	unsigned int start_lpn, end_lpn, length;
 	unsigned long flags;
-	struct victim_select_info *lru_info = &hpb->lru_info;
 
 	start_lpn = ufshpb_get_lpn(rq);
 	end_lpn = start_lpn + ufshpb_get_len(rq) - 1;
@@ -1495,7 +1492,6 @@ static void ufshpb_map_compl_process(struct ufshpb_req *map_req)
 	struct ufshpb_region *rgn = hpb->rgn_tbl + map_req->rgn_idx;
 	struct ufshpb_subregion *srgn = rgn->srgn_tbl + map_req->srgn_idx;
 	unsigned long flags;
-	int i = 0;
 
 #if defined(CONFIG_HPB_DEBUG)
 	if (hpb->debug)

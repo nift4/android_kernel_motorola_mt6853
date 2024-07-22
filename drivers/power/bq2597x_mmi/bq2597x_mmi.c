@@ -2302,13 +2302,13 @@ if (1) {
 	return IRQ_HANDLED;
 }
 
-
+/*
 static void determine_initial_status(struct bq2597x *bq)
 {
 	if (bq->client->irq)
 		bq2597x_charger_interrupt(bq->client->irq, bq);
 }
-
+*/
 
 
 static int show_registers(struct seq_file *m, void *data)

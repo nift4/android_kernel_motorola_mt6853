@@ -437,7 +437,6 @@ int ufs_mtk_pltfrm_bootrom_deputy(struct ufs_hba *hba)
 
 int ufs_mtk_pltfrm_ref_clk_ctrl(struct ufs_hba *hba, bool on)
 {
-	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 	int ret = 0;
 	u32 val = 0;
 

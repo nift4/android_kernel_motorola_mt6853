@@ -183,7 +183,9 @@ static int mtk_mux_set_parent_setclr(struct clk_hw *hw, u8 index)
 	u32 mask = GENMASK(mux->mux_width - 1, 0);
 	u32 val = 0, orig = 0;
 	unsigned long flags = 0;
+#if defined(CONFIG_MACH_MT6768)
 	const char *name;
+#endif
 
 	if (mux->lock)
 		spin_lock_irqsave(mux->lock, flags);

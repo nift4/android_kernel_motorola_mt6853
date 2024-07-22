@@ -107,6 +107,11 @@ typedef enum pn8xt_access_state {
     ST_SPI_PRIO_END         = 0x2000,   /*End of ESE access by SPI on priority*/
     ST_SPI_END              = 0x4000,
     ST_JCP_DN               = 0x8000,   /*JCOP downlad in progress */
+    JCP_DN_IDLE = ST_JCP_DN,        /* jcop dwnld is ongoing*/
+    JCP_DN_INIT=0x8010,             /* jcop dwonload init state*/
+    JCP_DN_START=0x8020,            /* download started */
+    JCP_SPI_DN_COMP=0x8040,         /* jcop download complete in spi interface*/
+    JCP_DWP_DN_COMP=0x8080,         /* jcop download complete */
     ST_SECURE_MODE          = 0x100000, /*secure mode state*/
     ST_SPI_SVDD_SY_START    = 0x0001,   /*ESE_VDD Low req by SPI*/
     ST_SPI_SVDD_SY_END      = 0x0002,   /*ESE_VDD is Low by SPI*/
@@ -119,14 +124,6 @@ typedef enum pn8xt_pwr_scheme {
     PN80T_LEGACY_PWR_SCM  = 0x02,
     PN80T_EXT_PMU_SCM,
 }pn8xt_pwr_scm_t;
-
-typedef enum pn8xt_jcop_dwnld_state {
-    JCP_DN_IDLE = ST_JCP_DN,        /* jcop dwnld is ongoing*/
-    JCP_DN_INIT=0x8010,             /* jcop dwonload init state*/
-    JCP_DN_START=0x8020,            /* download started */
-    JCP_SPI_DN_COMP=0x8040,         /* jcop download complete in spi interface*/
-    JCP_DWP_DN_COMP=0x8080,         /* jcop download complete */
-} pn8xt_jcop_dwnld_state_t;
 
 long pn8xt_nfc_ese_ioctl(struct nfc_dev *nfc_dev,  unsigned int cmd, unsigned int arg);
 long pn8xt_nfc_ioctl(struct nfc_dev *nfc_dev, unsigned int cmd, unsigned int arg);

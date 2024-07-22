@@ -322,13 +322,13 @@ int pseudo_dump_all_port_status(struct seq_file *s);
 int pseudo_dump_iova_reserved_region(struct seq_file *s);
 
 /* =========== register defination =========== */
-#define F_VAL(val, msb, lsb)		(((val)&((1<<(msb-lsb+1))-1))<<lsb)
-#define F_VAL_L(val, msb, lsb)		(((val)&((1L<<(msb-lsb+1))-1))<<lsb)
+#define F_VAL(val, msb, lsb)		(((val)&((1<<(msb-lsb+1))-1))<<(lsb))
+#define F_VAL_L(val, msb, lsb)		(((val)&((1L<<(msb-lsb+1))-1))<<(lsb))
 #define F_MSK(msb, lsb)			F_VAL(0xffffffff, msb, lsb)
 #define F_MSK_L(msb, lsb)		F_VAL_L(0xffffffffffffffff, msb, lsb)
 #define F_BIT_SET(bit)			(1<<(bit))
 #define F_BIT_VAL(val, bit)		((!!(val))<<(bit))
-#define F_MSK_SHIFT(regval, msb, lsb)	(((regval)&F_MSK(msb, lsb))>>lsb)
+#define F_MSK_SHIFT(regval, msb, lsb)	(((regval)&F_MSK(msb, lsb))>>(lsb))
 
 #define SMI_LARB_NON_SEC_CONx(larb_port)(0x380 + ((larb_port)<<2))
 #define F_SMI_NON_SEC_MMU_EN(en)	F_BIT_VAL(en, 0)

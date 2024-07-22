@@ -106,7 +106,6 @@ static struct proc_dir_entry *file_testmode;
 #if IS_ENABLED(CONFIG_MACH_MT6853)
 static void xhci_mtk_frmcnt_range(struct usb_hcd *hcd, int speed)
 {
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	u32 value;
 
 	value = readl(hcd->regs + INIT_FRMCNT_LEV1_FULL_RANGE);

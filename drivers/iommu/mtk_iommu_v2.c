@@ -205,9 +205,6 @@ static unsigned int mtk_iommu_get_domain_id(
 
 int mtk_iommu_get_port_id(struct device *dev)
 {
-	struct iommu_fwspec *fwspec;
-	unsigned int larbid, portid, domain_id = 0;
-
 	if (!dev)
 		return -ENODEV;
 

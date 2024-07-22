@@ -410,6 +410,7 @@ static void usb_phy_tuning(struct mtk_phy_instance *instance)
 	s32 u2_vrt_ref, u2_term_ref, u2_enhance;
 	static s32 u2_vrt_ref_host, u2_term_ref_host, u2_enhance_host;
 	struct device_node *of_node;
+	bool host;
 
 	if (!instance->phy_tuning.inited) {
 		instance->phy_tuning.u2_vrt_ref = 6;
@@ -444,7 +445,7 @@ static void usb_phy_tuning(struct mtk_phy_instance *instance)
 		instance->phy_tuning.inited = true;
 	}
 
-	bool host = !mt_usb_is_device();
+	host = !mt_usb_is_device();
 	if (host) {
 		u2_vrt_ref = u2_vrt_ref_host;
 		u2_term_ref = u2_term_ref_host;

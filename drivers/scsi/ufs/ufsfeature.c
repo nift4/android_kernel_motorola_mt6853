@@ -802,7 +802,7 @@ inline void ufsf_hid_on_idle(struct ufsf_feature *ufsf)
     ufshid_on_idle(ufsf);
 }
 #else
-inline int ufsf_hid_get_state(struct ufsf_feature *ufsf) {}
+inline int ufsf_hid_get_state(struct ufsf_feature *ufsf) {return 0;}
 inline void ufsf_hid_set_state(struct ufsf_feature *ufsf, int state) {}
 inline void ufsf_hid_get_dev_info(struct ufsf_feature *ufsf, u8 *desc_buf) {}
 inline void ufsf_hid_set_init_state(struct ufsf_feature *ufsf) {}
