@@ -268,6 +268,7 @@ static void mdee_info_dump_v2(struct ccci_fsm_ee *mdee)
 	struct mdee_dumper_v2 *dumper = mdee->dumper_obj;
 	int md_id = mdee->md_id;
 	struct ex_PL_log *ex_pl_info = (struct ex_PL_log *)dumper->ex_pl_info;
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	int md_state = ccci_fsm_get_md_state(mdee->md_id);
 	struct ccci_smem_region *mdccci_dbg =
 		ccci_md_get_smem_by_user_id(mdee->md_id,
@@ -275,13 +276,16 @@ static void mdee_info_dump_v2(struct ccci_fsm_ee *mdee)
 	struct ccci_smem_region *mdss_dbg =
 		ccci_md_get_smem_by_user_id(mdee->md_id,
 			SMEM_USER_RAW_MDSS_DBG);
+#endif
 	struct rtc_time tm;
 	struct timeval tv = { 0 };
 	struct timeval tv_android = { 0 };
 	struct rtc_time tm_android;
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	struct ccci_per_md *per_md_data =
 		ccci_get_per_md_data(mdee->md_id);
 	int md_dbg_dump_flag = per_md_data->md_dbg_dump_flag;
+#endif
 	int ret = 0;
 	int val = 0;
 
@@ -436,6 +440,7 @@ static void mdee_info_dump_v2(struct ccci_fsm_ee *mdee)
 		goto err_exit;
 	}
 
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	/* Dump MD EE info */
 	CCCI_MEM_LOG_TAG(md_id, FSM,
 		"Dump MD EX log, 0x%x, 0x%x\n", dumper->more_info,
@@ -468,6 +473,7 @@ static void mdee_info_dump_v2(struct ccci_fsm_ee *mdee)
 		if (dumper->more_info == MD_EE_CASE_NO_RESPONSE)
 			dump_flag |= CCCI_AED_DUMP_CCIF_REG;
 	}
+#endif
 
 err_exit:
 
@@ -954,17 +960,21 @@ static void mdee_dumper_v2_dump_ee_info(struct ccci_fsm_ee *mdee,
 {
 	struct mdee_dumper_v2 *dumper = mdee->dumper_obj;
 	int md_id = mdee->md_id;
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	struct ccci_smem_region *mdccci_dbg =
 		ccci_md_get_smem_by_user_id(mdee->md_id,
 			SMEM_USER_RAW_MDCCCI_DBG);
 	struct ccci_smem_region *mdss_dbg =
 		ccci_md_get_smem_by_user_id(mdee->md_id,
 			SMEM_USER_RAW_MDSS_DBG);
+#endif
 	int md_state = ccci_fsm_get_md_state(mdee->md_id);
 	char ex_info[EE_BUF_LEN] = {0};
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	struct ccci_per_md *per_md_data =
 		ccci_get_per_md_data(mdee->md_id);
 	int md_dbg_dump_flag = per_md_data->md_dbg_dump_flag;
+#endif
 	int ret = 0;
 
 	dumper->more_info = more_info;
@@ -993,6 +1003,7 @@ static void mdee_dumper_v2_dump_ee_info(struct ccci_fsm_ee *mdee,
 					__func__, __LINE__, ret);
 				return;
 			}
+#if defined(CONFIG_MTK_AEE_FEATURE)
 			/* Handshake 2 fail */
 			CCCI_MEM_LOG_TAG(md_id, FSM, "Dump MD EX log\n");
 			if (md_dbg_dump_flag & (1 << MD_DBG_DUMP_SMEM)) {
@@ -1003,12 +1014,14 @@ static void mdee_dumper_v2_dump_ee_info(struct ccci_fsm_ee *mdee,
 					mdss_dbg->base_ap_view_vir,
 					mdss_dbg->size);
 			}
+#endif
 
 			ccci_aed_v2(mdee,
 			CCCI_AED_DUMP_CCIF_REG
 			| CCCI_AED_DUMP_EX_MEM,
 			ex_info, DB_OPT_FTRACE);
 		}
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	} else if (level == MDEE_DUMP_LEVEL_STAGE1) {
 		if (md_dbg_dump_flag & (1 << MD_DBG_DUMP_SMEM)) {
 			CCCI_MEM_LOG_TAG(md_id, FSM,
@@ -1022,6 +1035,7 @@ static void mdee_dumper_v2_dump_ee_info(struct ccci_fsm_ee *mdee,
 			ccci_util_mem_dump(md_id, CCCI_DUMP_MEM_DUMP,
 				(mdss_dbg->base_ap_view_vir + 6 * 1024), 2048);
 		}
+#endif
 	} else if (level == MDEE_DUMP_LEVEL_STAGE2) {
 		mdee_info_prepare_v2(mdee);
 		mdee_info_dump_v2(mdee);

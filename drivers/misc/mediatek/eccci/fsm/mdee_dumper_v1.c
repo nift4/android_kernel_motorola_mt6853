@@ -132,19 +132,23 @@ static void mdee_dumper_info_dump_v1(struct ccci_fsm_ee *mdee)
 	struct debug_info_t *debug_info = &dumper->debug_info;
 	unsigned char c;
 	int md_state = ccci_fsm_get_md_state(mdee->md_id);
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	struct ccci_smem_region *mdccci_dbg =
 		ccci_md_get_smem_by_user_id(mdee->md_id,
 			SMEM_USER_RAW_MDCCCI_DBG);
 	struct ccci_smem_region *mdss_dbg =
 		ccci_md_get_smem_by_user_id(mdee->md_id,
 			SMEM_USER_RAW_MDSS_DBG);
+#endif
 	struct rtc_time tm;
 	struct timeval tv = { 0 };
 	struct timeval tv_android = { 0 };
 	struct rtc_time tm_android;
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	struct ccci_per_md *per_md_data =
 			ccci_get_per_md_data(mdee->md_id);
 	int md_dbg_dump_flag = per_md_data->md_dbg_dump_flag;
+#endif
 	int ret = 0;
 
 	do_gettimeofday(&tv);
@@ -381,6 +385,7 @@ static void mdee_dumper_info_dump_v1(struct ccci_fsm_ee *mdee)
 			__func__, __LINE__, ret, c);
 	}
 err_exit:
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	/* Dump MD EE info */
 	CCCI_MEM_LOG_TAG(md_id, FSM, "Dump MD EX log\n");
 	if ((md_id == MD_SYS3)
@@ -394,6 +399,7 @@ err_exit:
 		ccci_util_mem_dump(md_id, CCCI_DUMP_MEM_DUMP,
 			mdss_dbg->base_ap_view_vir, mdss_dbg->size);
 	}
+#endif
 
 	if (dumper->more_info == MD_EE_CASE_NORMAL
 		&& md_state == BOOT_WAITING_FOR_HS1) {
@@ -695,16 +701,20 @@ static void mdee_dumper_v1_dump_ee_info(struct ccci_fsm_ee *mdee,
 {
 	struct mdee_dumper_v1 *dumper = mdee->dumper_obj;
 	int md_id = mdee->md_id;
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	struct ccci_smem_region *mdccci_dbg =
 		ccci_md_get_smem_by_user_id(mdee->md_id,
 			SMEM_USER_RAW_MDCCCI_DBG);
 	struct ccci_smem_region *mdss_dbg =
 		ccci_md_get_smem_by_user_id(mdee->md_id,
 			SMEM_USER_RAW_MDSS_DBG);
+#endif
 	char ex_info[EE_BUF_LEN] = {0};
 	int md_state = ccci_fsm_get_md_state(mdee->md_id);
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	struct ccci_per_md *per_md_data = ccci_get_per_md_data(mdee->md_id);
 	int md_dbg_dump_flag = per_md_data->md_dbg_dump_flag;
+#endif
 	int ret = 0;
 
 	dumper->more_info = more_info;
@@ -719,6 +729,7 @@ static void mdee_dumper_v1_dump_ee_info(struct ccci_fsm_ee *mdee,
 		} else if (md_state == BOOT_WAITING_FOR_HS2) {
 			ret = snprintf(ex_info, EE_BUF_LEN,
 				"\n[Others] MD_BOOT_UP_FAIL(HS%d)\n", 2);
+#if defined(CONFIG_MTK_AEE_FEATURE)
 			/* Handshake 2 fail */
 			CCCI_MEM_LOG_TAG(md_id, FSM, "Dump MD EX log\n");
 			if (md_dbg_dump_flag & (1U << MD_DBG_DUMP_SMEM)) {
@@ -729,6 +740,7 @@ static void mdee_dumper_v1_dump_ee_info(struct ccci_fsm_ee *mdee,
 					mdss_dbg->base_ap_view_vir,
 					mdss_dbg->size);
 			}
+#endif
 
 			ccci_aed_v1(mdee,
 			CCCI_AED_DUMP_CCIF_REG | CCCI_AED_DUMP_EX_MEM,
@@ -739,6 +751,7 @@ static void mdee_dumper_v1_dump_ee_info(struct ccci_fsm_ee *mdee,
 				"%s-%d:snprintf fail,ret = %d\n", __func__, __LINE__, ret);
 			return;
 		}
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	} else if (level == MDEE_DUMP_LEVEL_STAGE1) {
 		if (md_dbg_dump_flag & (1 << MD_DBG_DUMP_SMEM)) {
 			CCCI_MEM_LOG_TAG(md_id, FSM, "Dump MD exp smem_log\n");
@@ -747,6 +760,7 @@ static void mdee_dumper_v1_dump_ee_info(struct ccci_fsm_ee *mdee,
 			ccci_util_mem_dump(md_id, CCCI_DUMP_MEM_DUMP,
 				mdss_dbg->base_ap_view_vir, mdss_dbg->size);
 		}
+#endif
 	} else if (level == MDEE_DUMP_LEVEL_STAGE2) {
 		mdee_dumper_info_prepare_v1(mdee);
 		mdee_dumper_info_dump_v1(mdee);

@@ -358,7 +358,9 @@ struct md_check_header_v6 {
 
 extern char *ccci_get_ap_platform(void);
 extern int ccci_common_sysfs_init(void);
+#if defined(CONFIG_MTK_AEE_FEATURE)
 extern void ccci_log_init(void);
+#endif
 extern int __init ccci_util_fo_init(void);
 extern void ccci_timer_for_md_init(void);
 extern const char *ld_md_errno_to_str(int errno);

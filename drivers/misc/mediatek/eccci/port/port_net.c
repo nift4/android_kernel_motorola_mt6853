@@ -464,10 +464,12 @@ static void ccmni_queue_recv_skb(struct port_t *port, struct sk_buff *skb)
 
 static int port_net_recv_skb(struct port_t *port, struct sk_buff *skb)
 {
+#if defined(CONFIG_MTK_AEE_FEATURE)
 #if MD_GENERATION >= (6293)
 	struct lhif_header *lhif_h = (struct lhif_header *)skb->data;
 #else
 	struct ccci_header *ccci_h = (struct ccci_header *)skb->data;
+#endif
 #endif
 	int mbim_ccmni_current = 0;
 #ifdef CCCI_SKB_TRACE

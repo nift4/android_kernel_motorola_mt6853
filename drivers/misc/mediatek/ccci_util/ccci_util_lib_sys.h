@@ -14,6 +14,8 @@
 
 extern unsigned int ccci_debug_enable;
 extern int curr_ubin_id;
+#if defined(CONFIG_MTK_AEE_FEATURE)
 int get_dump_buf_usage(char buf[], int size);
+#endif
 extern void spm_ap_mdsrc_req(unsigned char set);
 extern void inject_pin_status_event(int pin_value, char pin_name[]);

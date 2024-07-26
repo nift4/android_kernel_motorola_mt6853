@@ -1864,6 +1864,7 @@ void cldma_stop(unsigned char hif_id)
 {
 	struct md_cd_ctrl *md_ctrl =
 		(struct md_cd_ctrl *)ccci_hif_get_by_id(hif_id);
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	struct ccci_smem_region *mdccci_dbg =
 		ccci_md_get_smem_by_user_id(md_ctrl->md_id,
 			SMEM_USER_RAW_MDCCCI_DBG);
@@ -1873,6 +1874,7 @@ void cldma_stop(unsigned char hif_id)
 	struct ccci_per_md *per_md_data =
 		ccci_get_per_md_data(md_ctrl->md_id);
 	int md_dbg_dump_flag = per_md_data->md_dbg_dump_flag;
+#endif
 	int ret, count, i;
 	unsigned long flags;
 #ifdef ENABLE_CLDMA_TIMER
@@ -1902,6 +1904,7 @@ void cldma_stop(unsigned char hif_id)
 				ret, count);
 			CCCI_MEM_LOG_TAG(md_ctrl->md_id, TAG,
 				"Dump MD EX log\n");
+#if defined(CONFIG_MTK_AEE_FEATURE)
 			if (md_dbg_dump_flag & (1 << MD_DBG_DUMP_SMEM)) {
 				ccci_util_mem_dump(md_ctrl->md_id,
 					CCCI_DUMP_MEM_DUMP,
@@ -1912,6 +1915,7 @@ void cldma_stop(unsigned char hif_id)
 					mdss_dbg->base_ap_view_vir,
 					mdss_dbg->size);
 			}
+#endif
 			/*md_cd_dump_debug_register(md_ctrl);*/
 			cldma_dump_register(md_ctrl);
 			if (count >= 1600000) {
@@ -1946,6 +1950,7 @@ void cldma_stop(unsigned char hif_id)
 				ret, count);
 			CCCI_MEM_LOG_TAG(md_ctrl->md_id, TAG,
 				"Dump MD EX log\n");
+#if defined(CONFIG_MTK_AEE_FEATURE)
 			if ((count < 500000) || (count > 1200000))
 				if (md_dbg_dump_flag
 					& (1 << MD_DBG_DUMP_SMEM)) {
@@ -1958,6 +1963,7 @@ void cldma_stop(unsigned char hif_id)
 						mdss_dbg->base_ap_view_vir,
 						mdss_dbg->size);
 				}
+#endif
 			/*md_cd_dump_debug_register(md_ctrl);*/
 			cldma_dump_register(md_ctrl);
 			if (count >= 1600000) {
@@ -2038,6 +2044,7 @@ void cldma_stop_for_ee(unsigned char hif_id)
 		(struct md_cd_ctrl *)ccci_hif_get_by_id(hif_id);
 	int ret, count;
 	unsigned long flags;
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	struct ccci_smem_region *mdccci_dbg =
 		ccci_md_get_smem_by_user_id(md_ctrl->md_id,
 			SMEM_USER_RAW_MDCCCI_DBG);
@@ -2047,6 +2054,7 @@ void cldma_stop_for_ee(unsigned char hif_id)
 	struct ccci_per_md *per_md_data =
 		ccci_get_per_md_data(md_ctrl->md_id);
 	int md_dbg_dump_flag = per_md_data->md_dbg_dump_flag;
+#endif
 
 	CCCI_NORMAL_LOG(md_ctrl->md_id, TAG, "%s from %ps\n",
 		__func__, __builtin_return_address(0));
@@ -2070,6 +2078,7 @@ void cldma_stop_for_ee(unsigned char hif_id)
 				ret, count);
 			CCCI_MEM_LOG_TAG(md_ctrl->md_id, TAG,
 				"Dump MD EX log\n");
+#if defined(CONFIG_MTK_AEE_FEATURE)
 			if (md_dbg_dump_flag
 				& (1 << MD_DBG_DUMP_SMEM)) {
 				ccci_util_mem_dump(md_ctrl->md_id,
@@ -2081,6 +2090,7 @@ void cldma_stop_for_ee(unsigned char hif_id)
 					mdss_dbg->base_ap_view_vir,
 					mdss_dbg->size);
 			}
+#endif
 			/*md_cd_dump_debug_register(md_ctrl);*/
 			cldma_dump_register(md_ctrl);
 			if (count >= 1600000) {
@@ -2117,6 +2127,7 @@ void cldma_stop_for_ee(unsigned char hif_id)
 				ret, count);
 			CCCI_MEM_LOG_TAG(md_ctrl->md_id, TAG,
 				"Dump MD EX log\n");
+#if defined(CONFIG_MTK_AEE_FEATURE)
 			if (md_dbg_dump_flag & (1 << MD_DBG_DUMP_SMEM)) {
 				ccci_util_mem_dump(md_ctrl->md_id,
 					CCCI_DUMP_MEM_DUMP,
@@ -2127,6 +2138,7 @@ void cldma_stop_for_ee(unsigned char hif_id)
 					mdss_dbg->base_ap_view_vir,
 					mdss_dbg->size);
 			}
+#endif
 			/* md_cd_dump_debug_register(md_ctrl); */
 			cldma_dump_register(md_ctrl);
 			if (count >= 1600000) {

@@ -1022,7 +1022,9 @@ int port_kthread_handler(void *arg)
 	struct sk_buff *skb = NULL;
 	unsigned long flags;
 	int ret = 0;
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	int md_id = port->md_id;
+#endif
 
 	CCCI_DEBUG_LOG(md_id, TAG,
 		"port %s's thread running\n", port->name);

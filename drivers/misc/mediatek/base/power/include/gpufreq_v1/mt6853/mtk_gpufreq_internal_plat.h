@@ -113,8 +113,13 @@
 /**************************************************
  * DFD Dump
  **************************************************/
+#ifdef CONFIG_MTK_DFD_INTERNAL_DUMP
 #define MT_GPUFREQ_DFD_ENABLE 1
 #define MT_GPUFREQ_DFD_DEBUG 0
+#else
+#define MT_GPUFREQ_DFD_ENABLE 0
+#define MT_GPUFREQ_DFD_DEBUG 0
+#endif
 
 /**************************************************
  * Register Manipulations

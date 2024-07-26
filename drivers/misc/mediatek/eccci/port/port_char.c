@@ -77,7 +77,9 @@ static int port_char_init(struct port_t *port)
 {
 	struct cdev *dev = NULL;
 	int ret = 0;
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	int md_id = port->md_id;
+#endif
 
 	CCCI_DEBUG_LOG(md_id, CHAR,
 		"char port %s is initializing\n", port->name);
@@ -177,7 +179,9 @@ retry_push:
 
 static int port_char_recv_skb(struct port_t *port, struct sk_buff *skb)
 {
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	int md_id = port->md_id;
+#endif
 
 	if (!atomic_read(&port->usage_cnt) &&
 		(port->rx_ch != CCCI_UART2_RX &&

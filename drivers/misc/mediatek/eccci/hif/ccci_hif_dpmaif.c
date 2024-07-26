@@ -111,6 +111,7 @@ TRACE_EVENT(ccci_skb_rx,
 #endif
 
 
+#if defined(CONFIG_MTK_AEE_FEATURE)
 #define DPMA_DRB_LOG(fmt, args...) \
 do { \
 	ccci_dump_write(0, CCCI_DUMP_DPMA_DRB, 0, fmt, ##args); \
@@ -126,9 +127,15 @@ do { \
 
 #define DPMA_DRB_DATA_INFO(fmt, args...) \
 	ccci_dump_write(0, CCCI_DUMP_DPMA_DRB, 0, fmt, ##args)
+#else
+#define DPMA_DRB_LOG(fmt, args...) while(0){}
+#define DPMA_DRB_LOG_TIME(fmt, args...) while(0){}
+#define DPMA_DRB_DATA_INFO(fmt, args...) while(0){}
+#endif
 
 static void dpmaif_dump_register(struct hif_dpmaif_ctrl *hif_ctrl, int buf_type)
 {
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	if (hif_ctrl->dpmaif_state == HIFDPMAIF_STATE_PWROFF
 		|| hif_ctrl->dpmaif_state == HIFDPMAIF_STATE_MIN) {
 		CCCI_MEM_LOG_TAG(hif_ctrl->md_id, TAG,
@@ -239,6 +246,7 @@ static void dpmaif_dump_register(struct hif_dpmaif_ctrl *hif_ctrl, int buf_type)
 #else
 		0x184);
 #endif
+#endif
 }
 
 void dpmaif_dump_reg(void)
@@ -279,7 +287,9 @@ static void dpmaif_dump_rxq_remain(struct hif_dpmaif_ctrl *hif_ctrl,
 	unsigned int qno, int dump_multi)
 {
 	int i, rx_qno;
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	unsigned char md_id = hif_ctrl->md_id;
+#endif
 	struct dpmaif_rx_queue *rxq = NULL;
 
 	if (!dump_multi && (qno >= DPMAIF_RXQ_NUM)) {
@@ -369,7 +379,9 @@ static void dpmaif_dump_txq_remain(struct hif_dpmaif_ctrl *hif_ctrl,
 {
 	struct dpmaif_tx_queue *txq = NULL;
 	int i, tx_qno;
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	unsigned char md_id = hif_ctrl->md_id;
+#endif
 
 	if (!dump_multi && (qno >= DPMAIF_TXQ_NUM)) {
 		CCCI_MEM_LOG_TAG(md_id, TAG, "invalid txq%d\n", qno);
@@ -388,6 +400,7 @@ static void dpmaif_dump_txq_remain(struct hif_dpmaif_ctrl *hif_ctrl,
 		txq = &hif_ctrl->txq[i];
 		CCCI_MEM_LOG_TAG(md_id, TAG, "dpmaif:dump txq(%d): 0x%p\n",
 			i, txq);
+#if defined(CONFIG_MTK_AEE_FEATURE)
 		ccci_util_mem_dump(md_id, CCCI_DUMP_MEM_DUMP, (void *)txq,
 			sizeof(struct dpmaif_tx_queue));
 		CCCI_MEM_LOG(md_id, TAG, "dpmaif: drb(%d) base: 0x%p(%d*%d)\n",
@@ -398,6 +411,7 @@ static void dpmaif_dump_txq_remain(struct hif_dpmaif_ctrl *hif_ctrl,
 		       txq->drb_wr_idx, txq->drb_rd_idx, txq->drb_rel_rd_idx);
 		ccci_util_mem_dump(md_id, CCCI_DUMP_MEM_DUMP, txq->drb_base,
 			(txq->drb_size_cnt * sizeof(struct dpmaif_drb_pd)));
+#endif
 #if 0
 		CCCI_MEM_LOG(md_id, TAG,
 			"dpmaif: drb(%d) skb base: 0x%p(%d*%d)\n",

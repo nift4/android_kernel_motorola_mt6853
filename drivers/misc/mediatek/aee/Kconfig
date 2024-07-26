@@ -3,6 +3,9 @@ config MTK_AEE_FEATURE
 	default n
 	select FIQ_GLUE if !TRUSTONIC_TEE_SUPPORT && !ARM_PSCI && !TRUSTY
 	select TRACER_SNAPSHOT
+	select MTK_AEE_AED
+	select MTK_AEE_HANG_DETECT
+	select MTK_AEE_IPANIC if MTK_RAM_CONSOLE
 	help
 	  AEE (Android Exception Engine) that designed by  Mediatek is an
 	  exception catching and debugging information generation mechanism.
@@ -33,7 +36,7 @@ config MTK_AEE_IPANIC
 config MTK_AEE_HANG_DETECT
 	bool "hang detect monitor"
 	depends on MTK_AEE_FEATURE
-	default y
+	default n
 	help
 	  MTK_AEE_HANG_DETECT is the kernel config of hang feature
 	  designed by MTK, which is a debug feature for detecting device hang.

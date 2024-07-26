@@ -196,7 +196,11 @@ CCCI_ATTR(md1_postfix, 0444, &ccci_md1_post_fix_show, NULL);
 /* Sys -- dump buff usage */
 static ssize_t ccci_dump_buff_usage_show(char *buf)
 {
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	return get_dump_buf_usage(buf, 4095);
+#else
+	return 0;
+#endif
 }
 
 CCCI_ATTR(dump_max, 0660, &ccci_dump_buff_usage_show, NULL);
@@ -204,7 +208,11 @@ CCCI_ATTR(dump_max, 0660, &ccci_dump_buff_usage_show, NULL);
 /* Sys -- ccci stage change(chn) log  */
 static ssize_t ccci_dump_event_show(char *buf)
 {
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	return (ssize_t)ccci_event_log_cpy(buf, 4095);
+#else
+	return 0;
+#endif
 }
 
 CCCI_ATTR(md_chn, 0444, &ccci_dump_event_show, NULL);

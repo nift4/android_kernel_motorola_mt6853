@@ -14,6 +14,7 @@
 #ifndef __CCCI_UTIL_LOG_H__
 #define __CCCI_UTIL_LOG_H__
 
+#if defined(CONFIG_MTK_AEE_FEATURE)
 extern void mrdump_mini_add_misc(unsigned long addr, unsigned long size,
 	unsigned long start, char *name);
 
@@ -99,4 +100,17 @@ do {\
 
 
 #endif /* end of #ifndef BRING_UP_LOG_MODE */
+#else
+/* No MD id message part */
+#define CCCI_UTIL_DBG_MSG(fmt, args...)
+#define CCCI_UTIL_INF_MSG(fmt, args...)
+#define CCCI_UTIL_ERR_MSG(fmt, args...) pr_err("[ccci0/util]" fmt, ##args)
+
+/* With MD id message part */
+#define CCCI_UTIL_DBG_MSG_WITH_ID(id, fmt, args...)
+#define CCCI_UTIL_INF_MSG_WITH_ID(id, fmt, args...)
+#define CCCI_UTIL_NOTICE_MSG_WITH_ID(id, fmt, args...)
+#define CCCI_UTIL_ERR_MSG_WITH_ID(id, fmt, args...) \
+    pr_err("[ccci%d/util]" fmt, (id+1), ##args)
+#endif
 #endif /*__CCCI_UTIL_LOG_H__ */

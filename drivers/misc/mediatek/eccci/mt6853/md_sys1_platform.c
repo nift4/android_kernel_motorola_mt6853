@@ -668,6 +668,7 @@ int md_cd_pccif_send(struct ccci_modem *md, int channel_id)
 
 void md_cd_dump_pccif_reg(struct ccci_modem *md)
 {
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	struct md_hw_info *hw_info = md->hw_info;
 
 	md_cd_lock_modem_clock_src(1);
@@ -698,6 +699,7 @@ void md_cd_dump_pccif_reg(struct ccci_modem *md)
 		ccif_read32(hw_info->md_pcore_pccif_base, APCCIF_ACK));
 
 	md_cd_lock_modem_clock_src(0);
+#endif
 }
 
 void md_cd_check_emi_state(struct ccci_modem *md, int polling)
@@ -1027,17 +1029,21 @@ void ccci_modem_shutdown(struct platform_device *dev)
 
 int ccci_modem_suspend(struct platform_device *dev, pm_message_t state)
 {
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	struct ccci_modem *md = (struct ccci_modem *)dev->dev.platform_data;
 
 	CCCI_DEBUG_LOG(md->index, TAG, "%s\n", __func__);
+#endif
 	return 0;
 }
 
 int ccci_modem_resume(struct platform_device *dev)
 {
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	struct ccci_modem *md = (struct ccci_modem *)dev->dev.platform_data;
 
 	CCCI_DEBUG_LOG(md->index, TAG, "%s\n", __func__);
+#endif
 	return 0;
 }
 

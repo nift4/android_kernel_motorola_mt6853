@@ -524,6 +524,7 @@ static int md_cd_pre_stop(struct ccci_modem *md, unsigned int stop_type)
 	int count = 0;
 	int en_power_check;
 	u32 pending;
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	struct ccci_smem_region *mdccci_dbg =
 		ccci_md_get_smem_by_user_id(md->index,
 			SMEM_USER_RAW_MDCCCI_DBG);
@@ -533,6 +534,7 @@ static int md_cd_pre_stop(struct ccci_modem *md, unsigned int stop_type)
 	struct ccci_per_md *per_md_data =
 		ccci_get_per_md_data(md->index);
 	int md_dbg_dump_flag = per_md_data->md_dbg_dump_flag;
+#endif
 
 	/* 1. mutex check */
 	if (atomic_add_return(1, &md->reset_on_going) > 1) {
@@ -559,6 +561,7 @@ static int md_cd_pre_stop(struct ccci_modem *md, unsigned int stop_type)
 					"MD is not in sleep mode, dump md status!\n");
 					CCCI_MEM_LOG_TAG(md->index, TAG,
 					"Dump MD EX log\n");
+#if defined(CONFIG_MTK_AEE_FEATURE)
 					if (md_dbg_dump_flag &
 						(1 << MD_DBG_DUMP_SMEM)) {
 						ccci_util_mem_dump(md->index,
@@ -570,6 +573,7 @@ static int md_cd_pre_stop(struct ccci_modem *md, unsigned int stop_type)
 						mdss_dbg->base_ap_view_vir,
 						mdss_dbg->size);
 					}
+#endif
 					md_cd_dump_debug_register(md);
 					/* cldma_dump_register(CLDMA_HIF_ID);*/
 #if defined(CONFIG_MTK_AEE_FEATURE)
@@ -592,6 +596,7 @@ static int md_cd_pre_stop(struct ccci_modem *md, unsigned int stop_type)
 		if (pending) {
 			CCCI_NORMAL_LOG(md->index, TAG, "WDT IRQ occur.");
 			CCCI_MEM_LOG_TAG(md->index, TAG, "Dump MD EX log\n");
+#if defined(CONFIG_MTK_AEE_FEATURE)
 			if (md_dbg_dump_flag & (1 << MD_DBG_DUMP_SMEM)) {
 				ccci_util_mem_dump(md->index,
 					CCCI_DUMP_MEM_DUMP,
@@ -602,7 +607,7 @@ static int md_cd_pre_stop(struct ccci_modem *md, unsigned int stop_type)
 					mdss_dbg->base_ap_view_vir,
 					mdss_dbg->size);
 			}
-
+#endif
 			md_cd_dump_debug_register(md);
 			/* cldma_dump_register(CLDMA_HIF_ID);*/
 #if defined(CONFIG_MTK_AEE_FEATURE)
@@ -953,6 +958,7 @@ static int md_cd_force_assert(struct ccci_modem *md, enum MD_COMM_TYPE type)
 	return 0;
 }
 
+#if defined(CONFIG_MTK_AEE_FEATURE)
 static void md_cd_dump_ccif_reg(struct ccci_modem *md)
 {
 	struct md_sys1_info *md_info = (struct md_sys1_info *)md->private_data;
@@ -1011,6 +1017,7 @@ static void md_cd_dump_ccif_reg(struct ccci_modem *md)
 				(idx + 3) * sizeof(u32)));
 	}
 }
+#endif
 
 void __weak md_cd_get_md_bootup_status(struct ccci_modem *md,
 	unsigned int *buff, int length)
@@ -1024,6 +1031,7 @@ void __weak md_cd_get_md_bootup_status(struct ccci_modem *md,
 static int md_cd_dump_info(struct ccci_modem *md,
 	enum MODEM_DUMP_FLAG flag, void *buff, int length)
 {
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	struct md_sys1_info *md_info =
 		(struct md_sys1_info *)md->private_data;
 
@@ -1201,6 +1209,9 @@ static int md_cd_dump_info(struct ccci_modem *md,
 		md_cd_get_md_bootup_status(md, (unsigned int *)buff, length);
 
 	return length;
+#else
+	return 0;
+#endif
 }
 
 static int md_cd_ee_callback(struct ccci_modem *md, enum MODEM_EE_FLAG flag)

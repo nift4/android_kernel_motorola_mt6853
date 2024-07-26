@@ -164,8 +164,10 @@ void fsm_md_exception_stage(struct ccci_fsm_ee *ee_ctl, int stage)
 
 		/* Dump MD memory layout */
 		CCCI_MEM_LOG_TAG(md_id, FSM, "Dump MD layout struct\n");
+#if defined(CONFIG_MTK_AEE_FEATURE)
 		ccci_util_mem_dump(md_id, CCCI_DUMP_MEM_DUMP, mem_layout,
 			sizeof(struct ccci_mem_layout));
+#endif
 
 		/* Dump CCB memory */
 		ccci_md_dump_info(md_id,

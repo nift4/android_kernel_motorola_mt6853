@@ -698,6 +698,7 @@ enum {
 	CCCI_DUMP_MD_INIT,
 	CCCI_DUMP_MAX,
 };
+#if defined(CONFIG_MTK_AEE_FEATURE)
 void ccci_util_mem_dump(int md_id, int buf_type, void *start_addr, int len);
 void ccci_util_cmpt_mem_dump(int md_id, int buf_type, void *start_addr,
 	int len);
@@ -707,6 +708,7 @@ int ccci_log_write(const char *fmt, ...);
 int ccci_log_write_raw(unsigned int flags, const char *fmt, ...);
 int ccci_event_log_cpy(char buf[], int size);
 int ccci_event_log(const char *fmt, ...);
+#endif
 int ccmni_send_mbim_skb(int md_id, struct sk_buff *skb);
 void ccmni_update_mbim_interface(int md_id, int id);
 

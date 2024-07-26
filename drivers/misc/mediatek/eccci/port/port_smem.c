@@ -317,7 +317,9 @@ int port_smem_rx_wakeup(struct port_t *port)
 	struct ccci_smem_port *smem_port =
 		(struct ccci_smem_port *)port->private_data;
 	unsigned long flags;
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	int md_id = port->md_id;
+#endif
 
 	if (smem_port == NULL)
 		return -EFAULT;

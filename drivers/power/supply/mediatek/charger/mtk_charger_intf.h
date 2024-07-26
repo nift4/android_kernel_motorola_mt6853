@@ -574,7 +574,11 @@ bool __attribute__((weak)) is_usb_rdy(void)
 	return false;
 }
 
+#if defined(CONFIG_MTK_AEE_FEATURE)
 extern void aee_kernel_RT_Monitor_api_factory(void);
+#else
+#define aee_kernel_RT_Monitor_api_factory()
+#endif
 
 /* procfs */
 #define PROC_FOPS_RW(name)						\

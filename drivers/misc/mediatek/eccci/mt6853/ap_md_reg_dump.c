@@ -84,6 +84,7 @@ void md_io_remap_internal_dump_register(struct ccci_modem *md)
  */
 void internal_md_dump_debug_register(unsigned int md_index)
 {
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	/* ioremap reg from dump_reg_tab,check ioremap result */
 	if (ioremap_dump_flag == 0) {
 		CCCI_MEM_LOG_TAG(md_index, TAG,
@@ -711,5 +712,5 @@ void internal_md_dump_debug_register(unsigned int md_index)
 		"Dump mcore peri dbus2: [0]0x0D144800\n");
 	ccci_util_mem_dump(md_index, CCCI_DUMP_MEM_DUMP,
 		(USIP_reg + 0x00040400), 0xB0);
-
+#endif
 }

@@ -49,7 +49,9 @@ static atomic_t md1_md3_smem_clear = ATOMIC_INIT(0);
 
 #define DBM_S (CCCI_SMEM_SIZE_DBM + CCCI_SMEM_SIZE_DBM_GUARD * 2)
 #define CCB_CACHE_MIN_SIZE    (2 * 1024 * 1024)
+#if defined(CONFIG_MTK_AEE_FEATURE)
 static const char *s_smem_user_names[SMEM_USER_MAX];
+#endif
 
 #define MD_SMEM_FLAG_NORMAL    0
 #define MD_SMEM_FLAG_PADDING   1
@@ -279,6 +281,7 @@ struct ccci_smem_region md3_6291_noncacheable_fat[] = {
 {SMEM_USER_MAX, },
 };
 
+#if defined(CONFIG_MTK_AEE_FEATURE)
 static void init_smem_user_name(void)
 {
 	s_smem_user_names[SMEM_USER_RAW_DBM] = "RAW_DBM";
@@ -320,7 +323,6 @@ static void init_smem_user_name(void)
 #endif
 }
 
-
 static const char *get_smem_user_name(int user_id)
 {
 	if (user_id < 0 || user_id >= SMEM_USER_MAX)
@@ -328,6 +330,7 @@ static const char *get_smem_user_name(int user_id)
 
 	return s_smem_user_names[user_id];
 }
+#endif
 
 static struct ccci_smem_region *get_smem_by_user_id(
 	struct ccci_smem_region *regions, enum SMEM_USER_ID user_id)
@@ -1339,7 +1342,9 @@ int ccci_md_register(struct ccci_modem *md)
 	/* init per-modem sub-system */
 	CCCI_INIT_LOG(md->index, TAG, "register modem\n");
 
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	init_smem_user_name();
+#endif
 
 	/* init modem */
 	ret = md->ops->init(md);
@@ -2538,8 +2543,10 @@ int ccci_md_prepare_runtime_data(unsigned char md_id, unsigned char *data,
 
 	total_len = rt_data - (char *)rt_data_region->base_ap_view_vir;
 	CCCI_BOOTUP_DUMP_LOG(md->index, TAG, "AP runtime data\n");
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	ccci_util_mem_dump(md->index, CCCI_DUMP_BOOTUP,
 		rt_data_region->base_ap_view_vir, total_len);
+#endif
 
 	return 0;
 }

@@ -1016,8 +1016,9 @@ static int ged_dvfs_fb_gpu_dvfs(int t_gpu, int t_gpu_target,
 		force_fallback_pre = force_fallback;
 #ifdef GED_CONFIGURE_LOADING_BASE_DVFS_STEP
 		if (force_fallback == 1) {
+			int i32NewFreqID;
 			g_lb_down_count = 1;
-			int i32NewFreqID =
+			i32NewFreqID =
 			(int) mt_gpufreq_get_cur_freq_index();
 
 			if (dvfs_step_mode == 0)

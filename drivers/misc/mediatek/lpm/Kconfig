@@ -33,8 +33,6 @@ config MTK_LPM_MT6779
 config MTK_LPM_MT6833
 	tristate "Specify Mediatek LPM Platform is MT6833"
 	depends on MTK_LOW_POWER_MODULE
-	select MTK_LPM_DBG_COMMON
-	select MTK_LPM_GS_DUMP_SUPPORT
 	help
 	  Select MediaTek Low Power Module Platform is MT6833
 	  for power management.
@@ -44,7 +42,6 @@ config MTK_LPM_MT6833
 config MTK_LPM_MT6853
 	tristate "Specify Mediatek LPM Platform is MT6853"
 	depends on MTK_LOW_POWER_MODULE
-	select MTK_LPM_DBG_COMMON
 	help
 	  Select MediaTek Low Power Module Platform is MT6853
 	  for power management.
@@ -54,7 +51,6 @@ config MTK_LPM_MT6853
 config MTK_LPM_MT6873
 	tristate "Specify Mediatek LPM Platform is MT6873"
 	depends on MTK_LOW_POWER_MODULE
-	select MTK_LPM_DBG_COMMON
 	help
 	  Select MediaTek Low Power Module Platform is MT6873
 	  for power management.
@@ -64,8 +60,6 @@ config MTK_LPM_MT6873
 config MTK_LPM_MT6877
 	tristate "Specify Mediatek LPM Platform is MT6877"
 	depends on MTK_LOW_POWER_MODULE
-	select MTK_LPM_DBG_COMMON
-	select MTK_LPM_GS_DUMP_SUPPORT
 	help
 	  Select MediaTek Low Power Module Platform is MT6877
 	  for power management.
@@ -75,7 +69,6 @@ config MTK_LPM_MT6877
 config MTK_LPM_MT6885
 	tristate "Specify Mediatek LPM Platform is MT6885"
 	depends on MTK_LOW_POWER_MODULE
-	select MTK_LPM_DBG_COMMON
 	help
 	  Select MediaTek Low Power Module Platform is MT6885
 	  for power management.
@@ -85,8 +78,6 @@ config MTK_LPM_MT6885
 config MTK_LPM_MT6781
 	tristate "Specify Mediatek LPM Platform is MT6781"
 	depends on MTK_LOW_POWER_MODULE
-	select MTK_LPM_DBG_COMMON
-	select MTK_LPM_GS_DUMP_SUPPORT
 	help
 	  Select MediaTek Low Power Module Platform is MT6781
 	  for power management.

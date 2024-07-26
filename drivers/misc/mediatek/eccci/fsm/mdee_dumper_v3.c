@@ -260,6 +260,7 @@ static void mdee_info_dump_v3(struct ccci_fsm_ee *mdee)
 	char buf_fail[] = "Fail alloc mem for exception\n";
 	struct mdee_dumper_v3 *dumper = mdee->dumper_obj;
 	struct debug_info_t *debug_info = &dumper->debug_info;
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	struct ccci_smem_region *mdccci_dbg =
 		ccci_md_get_smem_by_user_id(mdee->md_id,
 			SMEM_USER_RAW_MDCCCI_DBG);
@@ -269,6 +270,7 @@ static void mdee_info_dump_v3(struct ccci_fsm_ee *mdee)
 	struct ccci_per_md *per_md_data =
 		ccci_get_per_md_data(mdee->md_id);
 	int md_dbg_dump_flag = per_md_data->md_dbg_dump_flag;
+#endif
 	int ret = 0;
 #ifdef CCCI_PLATFORM_MT6781
 	struct ccci_modem *md = NULL;
@@ -359,6 +361,7 @@ static void mdee_info_dump_v3(struct ccci_fsm_ee *mdee)
 		}
 	}
 
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	CCCI_MEM_LOG_TAG(md_id, FSM, "Dump MD EX log, 0x%x, 0x%x\n",
 		dumper->more_info, debug_info->par_data_source);
 	if (debug_info->par_data_source == MD_EE_DATA_IN_GPD) {
@@ -385,6 +388,7 @@ static void mdee_info_dump_v3(struct ccci_fsm_ee *mdee)
 		}
 #endif
 	}
+#endif
 
 err_exit:
 	/* update here to maintain handshake stage info
@@ -838,6 +842,7 @@ static void mdee_dumper_v3_dump_ee_info(struct ccci_fsm_ee *mdee,
 	enum MDEE_DUMP_LEVEL level, int more_info)
 {
 	struct mdee_dumper_v3 *dumper = mdee->dumper_obj;
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	int md_id = mdee->md_id;
 	struct ccci_smem_region *mdccci_dbg =
 		ccci_md_get_smem_by_user_id(mdee->md_id,
@@ -845,11 +850,14 @@ static void mdee_dumper_v3_dump_ee_info(struct ccci_fsm_ee *mdee,
 	struct ccci_smem_region *mdss_dbg =
 		ccci_md_get_smem_by_user_id(mdee->md_id,
 			SMEM_USER_RAW_MDSS_DBG);
+#endif
 	int md_state = ccci_fsm_get_md_state(mdee->md_id);
 	char ex_info[EE_BUF_LEN] = {0};
 	struct ccci_per_md *per_md_data =
 		ccci_get_per_md_data(mdee->md_id);
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	int md_dbg_dump_flag = per_md_data->md_dbg_dump_flag;
+#endif
 	int ret = 0;
 #ifdef CCCI_PLATFORM_MT6781
 	struct ccci_modem *md = NULL;
@@ -900,6 +908,7 @@ static void mdee_dumper_v3_dump_ee_info(struct ccci_fsm_ee *mdee,
 			}
 			/* Handshake 2 fail */
 			CCCI_MEM_LOG_TAG(md_id, FSM, "Dump MD EX log\n");
+#if defined(CONFIG_MTK_AEE_FEATURE)
 			if (md_dbg_dump_flag & (1U << MD_DBG_DUMP_SMEM)) {
 				ccci_util_mem_dump(md_id, CCCI_DUMP_MEM_DUMP,
 					mdccci_dbg->base_ap_view_vir,
@@ -912,9 +921,9 @@ static void mdee_dumper_v3_dump_ee_info(struct ccci_fsm_ee *mdee,
 				ccci_util_mem_dump(md_id, CCCI_DUMP_MEM_DUMP,
 					md_reg->md_l2sram_base, MD_L2SRAM_SIZE);
 				md_cd_lock_modem_clock_src(0);
-
 #endif
 			}
+#endif
 
 			ccci_aed_v3(mdee,
 			CCCI_AED_DUMP_CCIF_REG | CCCI_AED_DUMP_EX_MEM,
@@ -922,6 +931,7 @@ static void mdee_dumper_v3_dump_ee_info(struct ccci_fsm_ee *mdee,
 		}
 	} else if (level == MDEE_DUMP_LEVEL_STAGE1) {
 		CCCI_MEM_LOG_TAG(md_id, FSM, "Dump MD EX log\n");
+#if defined(CONFIG_MTK_AEE_FEATURE)
 		if (md_dbg_dump_flag & (1 << MD_DBG_DUMP_SMEM)) {
 			ccci_util_mem_dump(md_id, CCCI_DUMP_MEM_DUMP,
 				mdccci_dbg->base_ap_view_vir, mdccci_dbg->size);
@@ -934,6 +944,7 @@ static void mdee_dumper_v3_dump_ee_info(struct ccci_fsm_ee *mdee,
 			md_cd_lock_modem_clock_src(0);
 #endif
 		}
+#endif
 		/*dump md register on no response EE*/
 		if (more_info == MD_EE_CASE_NO_RESPONSE)
 			per_md_data->md_dbg_dump_flag = MD_DBG_DUMP_ALL;

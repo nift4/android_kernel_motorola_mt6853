@@ -1,7 +1,6 @@
 
 config PRINTK_MT_PREFIX
 	bool "Prefix cpu_id/status/pid/process_name to each kernel log"
-	default y
 	help
 	  PRINTK_MT_PREFIX which is used to control whether to show
 	  process information about this log.
@@ -11,7 +10,6 @@ config PRINTK_MT_PREFIX
 config MTK_PRINTK_UART_CONSOLE
 	bool "MTK printk UART controller"
 	depends on MEDIATEK_SOLUTION
-	default y
 	help
 	  MTK_PRINTK_UART_CONSOLE which is used to control whether to
 	  control printk to uart console.  when boot up finish

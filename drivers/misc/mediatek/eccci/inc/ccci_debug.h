@@ -37,6 +37,7 @@ enum {
 };
 
 extern unsigned int ccci_debug_enable; /* Exported by CCCI core */
+#if defined(CONFIG_MTK_AEE_FEATURE)
 extern int ccci_log_write(const char *fmt, ...); /* Exported by CCCI Util */
 
 /*****************************************************************************
@@ -150,7 +151,27 @@ do { \
 		"[%d]" fmt, (idx+1), ##args); \
 	CCCI_LEGACY_DBG_LOG(idx, tag, fmt, ##args); \
 } while (0)
-
+#else
+#define CCCI_LEGACY_DBG_LOG(idx, tag, fmt, args...) do{}while(0)
+#define CCCI_LEGACY_ALWAYS_LOG(idx, tag, fmt, args...) \
+	pr_info("[ccci%d/" tag "]" fmt, (idx+1), ##args)
+#define CCCI_LEGACY_ERR_LOG(idx, tag, fmt, args...) \
+	pr_err("[ccci%d/" tag "]" fmt, (idx+1), ##args)
+#define CCCI_INIT_LOG(idx, tag, fmt, args...) CCCI_LEGACY_DBG_LOG(idx, tag, fmt, ##args)
+#define CCCI_BOOTUP_LOG(idx, tag, fmt, args...) CCCI_LEGACY_DBG_LOG(idx, tag, fmt, ##args)
+#define CCCI_BOOTUP_DUMP_LOG(idx, tag, fmt, args...) CCCI_LEGACY_DBG_LOG(idx, tag, fmt, ##args)
+#define CCCI_NORMAL_LOG(idx, tag, fmt, args...) CCCI_LEGACY_ALWAYS_LOG(idx, tag, fmt, ##args)
+#define CCCI_NOTICE_LOG(idx, tag, fmt, args...) CCCI_LEGACY_ALWAYS_LOG(idx, tag, fmt, ##args)
+#define CCCI_ERROR_LOG(idx, tag, fmt, args...) CCCI_LEGACY_ERR_LOG(idx, tag, fmt, ##args)
+#define CCCI_DEBUG_LOG(idx, tag, fmt, args...) CCCI_LEGACY_DBG_LOG(idx, tag, fmt, ##args)
+#define CCCI_REPEAT_LOG(idx, tag, fmt, args...) CCCI_LEGACY_DBG_LOG(idx, tag, fmt, ##args)
+#define CCCI_MEM_LOG(idx, tag, fmt, args...) CCCI_LEGACY_DBG_LOG(idx, tag, fmt, ##args)
+#define CCCI_MEM_LOG_TAG(idx, tag, fmt, args...) CCCI_LEGACY_DBG_LOG(idx, tag, fmt, ##args)
+#define CCCI_HISTORY_LOG(idx, tag, fmt, args...) CCCI_LEGACY_DBG_LOG(idx, tag, fmt, ##args)
+#define CCCI_HISTORY_TAG_LOG(idx, tag, fmt, args...) CCCI_LEGACY_DBG_LOG(idx, tag, fmt, ##args)
+#define CCCI_BUF_LOG_TAG(idx, buf_type, tag, fmt, args...)CCCI_LEGACY_DBG_LOG(idx, tag, fmt, ##args)
+#define ccci_event_log(fmt, args...) pr_warn(fmt, ##args)
+#endif
 /****************************************************************************
  ** CCCI dump log define end ****************
  ****************************************************************************/

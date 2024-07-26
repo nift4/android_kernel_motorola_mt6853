@@ -1365,7 +1365,9 @@ static int port_rpc_init(struct port_t *port)
 
 int port_rpc_recv_match(struct port_t *port, struct sk_buff *skb)
 {
+#if defined(CONFIG_MTK_AEE_FEATURE)
 	int md_id = port->md_id;
+#endif
 	int is_userspace_msg = 0;
 	struct ccci_header *ccci_h = (struct ccci_header *)skb->data;
 	struct rpc_buffer *rpc_buf = (struct rpc_buffer *)skb->data;
