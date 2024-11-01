@@ -46,7 +46,8 @@ endif
 
     # Do build-in for Makefile checking
     # export CONFIG_WLAN_DRV_BUILD_IN=y
-    export CONFIG_MTK_COMBO_CHIP=CONSYS_6853
+    CONFIG_MTK_COMBO_CHIP := CONSYS_6853
+    export CONFIG_MTK_COMBO_CHIP=$(CONFIG_MTK_COMBO_CHIP)
     export TARGET_BUILD_VARIANT=user
 
     $(info $$CONFIG_MTK_COMBO_CHIP is [${CONFIG_MTK_COMBO_CHIP}])
