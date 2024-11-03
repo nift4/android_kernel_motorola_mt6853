@@ -8,11 +8,11 @@
 
 import sys, os
 import re
-import ConfigParser
+import configparser
 import string
 import xml.dom.minidom
 
-from ModuleObj import ModuleObj
+from .ModuleObj import ModuleObj
 from data.RfioData import RfioData
 
 from utility.util import log
@@ -33,7 +33,7 @@ class RfioObj(ModuleObj):
         self.__mapPadName = {}
 
     def get_cfgInfo(self):
-        cp = ConfigParser.ConfigParser(allow_no_value=True)
+        cp = configparser.ConfigParser(strict=False, allow_no_value=True)
         path = os.path.join(sys.path[0], 'config', 'RFIO.cmp')
         if not os.path.exists(path) or not os.path.isfile(path):
             log(LogLevel.error, 'Can not find YuSu.cmp file!')
@@ -50,16 +50,16 @@ class RfioObj(ModuleObj):
         nodes = node.childNodes
         for node in nodes:
             if node.nodeType == xml.dom.Node.ELEMENT_NODE:
-                if cmp(node.nodeName, 'chip') == 0:
+                if node.nodeName == 'chip':
                     if len(node.childNodes) == 0:
                        break
                     self.__chipName = node.childNodes[0].nodeValue
                     continue
-                if cmp(node.nodeName, 'count') == 0:
+                if node.nodeName == 'count':
                     if len(node.childNodes) == 0:
                         break
-                    self.__count = string.atoi(node.childNodes[0].nodeValue)
-                if cmp(node.nodeName, 'mmode') == 0:
+                    self.__count = int(node.childNodes[0].nodeValue)
+                if node.nodeName == 'mmode':
                     if len(node.childNodes) == 0:
                         break
                     self.__mMode = node.childNodes[0].nodeValue
@@ -93,19 +93,19 @@ class RfioObj(ModuleObj):
 
                 if len(iesNode) != 0 and len(iesNode[0].childNodes) != 0:
                     flag = False
-                    if cmp(iesNode[0].childNodes[0].nodeValue, 'true') == 0:
+                    if iesNode[0].childNodes[0].nodeValue == 'true':
                         flag = True
                     data.set_ies(flag)
 
                 if len(smtNode) != 0 and len(smtNode[0].childNodes) != 0:
                     flag = False
-                    if cmp(smtNode[0].childNodes[0].nodeValue, 'true') == 0:
+                    if smtNode[0].childNodes[0].nodeValue == 'true':
                         flag = True
                     data.set_smt(flag)
 
                 if len(analogPadNode) != 0 and len(analogPadNode[0].childNodes) != 0:
                     flag = False
-                    if cmp(analogPadNode[0].childNodes[0].nodeValue, 'true') == 0:
+                    if analogPadNode[0].childNodes[0].nodeValue == 'true':
                         flag = True
                     data.set_analogPad(flag)
 
@@ -139,7 +139,7 @@ class RfioObj(ModuleObj):
         gen_str = '''#include "digrf_iomux.h"\n'''
 
         gen_str += '''const io_cfg_table_t digrf_io_cfg_table = {\n\t%s_CHIP_ID,\n\t%s,\n\t0,\n\t{\n''' %(self.__chipName, self.__mMode)
-        for key in sorted_key(self.__mapPadName.keys()):
+        for key in sorted_key(list(self.__mapPadName.keys())):
             padName = self.__mapPadName[key]
             item = ModuleObj.get_data(self)[padName.upper()]
             iesStr = 'RFIO_DISABLE'
