@@ -513,13 +513,6 @@ $(PVRSRV_MODNAME)-y += \
 $(PVRSRV_MODNAME)-y += \
  generated/$(PVR_ARCH)/synctracking_bridge/client_synctracking_direct_bridge.o
 
-# Enable -Werror for all built object files (suppress for Fiasco.OC/L4Linux)
-ifeq ($(CONFIG_L4),)
-ifneq ($(W),1)
-$(foreach _o,$(addprefix CFLAGS_,$(notdir $($(PVRSRV_MODNAME)-y))),$(eval $(_o) := -Werror))
-endif
-endif
-
 # With certain build configurations, e.g., ARM, Werror, we get a build
 # failure in the ftrace Linux kernel header.  So disable the relevant check.
 CFLAGS_trace_events.o := -Wno-missing-prototypes
