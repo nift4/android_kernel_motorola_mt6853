@@ -1,0 +1,19 @@
+DLKM_DIR := motorola/kernel/modules
+LOCAL_PATH := $(call my-dir)
+
+ifneq ($(BOARD_USES_TOUCHSCREEN_EARLY_BLANK),)
+	KERNEL_CFLAGS += CONFIG_USES_TOUCHSCREEN_EARLY_BLANK=y
+ifneq ($(CONFIG_TOUCH_LCM_NOTIFIY),)
+        KERNEL_CFLAGS += CONFIG_SET_TOUCHSCREEN_LCM_NOTIFIY=y
+endif
+endif
+
+ifeq ($(CONFIG_TOUCH_MTK_TPD_MULT_PANEL), true)
+	KERNEL_CFLAGS += CONFIG_MTK_TPD_MULT_PANEL=y
+endif
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := mtk_tpd_mmi.ko
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_PATH := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/AndroidKernelModule.mk

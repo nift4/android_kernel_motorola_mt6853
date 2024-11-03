@@ -1,0 +1,23 @@
+# add -Wall to try to catch everything we can.
+EXTRA_CFLAGS += -Wall
+EXTRA_CFLAGS += -I$(TOP)/motorola/kernel/modules/include
+
+ifneq ($(filter m y,$(CONFIG_MTK_TPD_MULT_PANEL)),)
+	EXTRA_CFLAGS += -DTPD_MULT_PANEL
+endif
+
+obj-m := mtk_tpd_mmi.o
+mtk_tpd_mmi-objs += mtk_tpd.o
+mtk_tpd_mmi-objs += tpd_button.o
+mtk_tpd_mmi-objs += tpd_calibrate.o
+mtk_tpd_mmi-objs += tpd_default.o
+mtk_tpd_mmi-objs += tpd_misc.o
+mtk_tpd_mmi-objs += tpd_setting.o
+
+ifneq ($(filter m y,$(CONFIG_USES_TOUCHSCREEN_EARLY_BLANK)),)
+	EXTRA_CFLAGS += -DCONFIG_TOUCHSCREEN_EARLY_BLANK
+
+ifneq ($(filter m y,$(CONFIG_SET_TOUCHSCREEN_LCM_NOTIFIY)),)
+	EXTRA_CFLAGS += -DCONFIG_TOUCHSCREEN_LCM_NOTIFIY_SUPPORT
+endif
+endif
