@@ -52,11 +52,11 @@ ccci_port-y := port_cfg.o \
 endif
 
 # Add for corfu series
-ifeq ($(filter corfu cofud coful milan,$(TARGET_PRODUCT)),)
+ifeq ($(filter corfu cofud coful milan,$(CONFIG_ARCH_MOTO_PROJECT)),)
 ccflags-y += -DSWTP_GPIO_STATE_CUST
 endif
 
 # Add for Kyoto special swtp logic
-ifneq (,$(findstring kyoto, $(strip $(TARGET_PRODUCT))))
+ifneq (,$(findstring kyoto, $(strip $(CONFIG_ARCH_MOTO_PROJECT))))
 ccflags-y += -DKYOTO_SWTP_CUST
 endif
