@@ -283,7 +283,12 @@ static int innolux_panel_probe(struct mipi_dsi_device *dsi)
 		return err;
 
 	err = mipi_dsi_attach(dsi);
-	return err;
+	if (err < 0) {
+		innolux_panel_del(innolux);
+		return err;
+	}
+
+	return 0;
 }
 
 static int innolux_panel_remove(struct mipi_dsi_device *dsi)
