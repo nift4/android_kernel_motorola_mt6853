@@ -88,7 +88,6 @@ bool swap_slot_has_sync_io(swp_entry_t entry)
 	return ((sis->flags & SWP_SYNCHRONOUS_IO) == SWP_SYNCHRONOUS_IO);
 }
 
-
 static void end_swap_bio_read(struct bio *bio)
 {
 	struct page *page = bio_first_page_all(bio);
