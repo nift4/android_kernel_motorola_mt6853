@@ -293,9 +293,9 @@ static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
             FTS_INFO("Gesture got but wakeable not set. Skip this gesture.");
             return;
         }
-        input_report_key(fts_data->sensor_pdata->input_sensor_dev, KEY_F1, 1);
+        input_report_key(fts_data->sensor_pdata->input_sensor_dev, KEY_WAKEUP, 1);
         input_sync(fts_data->sensor_pdata->input_sensor_dev);
-        input_report_key(fts_data->sensor_pdata->input_sensor_dev, KEY_F1, 0);
+        input_report_key(fts_data->sensor_pdata->input_sensor_dev, KEY_WAKEUP, 0);
         input_sync(fts_data->sensor_pdata->input_sensor_dev);
 #ifdef CONFIG_HAS_WAKELOCK
         wake_lock_timeout(&gesture_wakelock, msecs_to_jiffies(5000));
@@ -350,7 +350,7 @@ static int fts_sensor_init(struct fts_ts_data *data)
     data->sensor_pdata = sensor_pdata;
 
     __set_bit(EV_KEY, sensor_input_dev->evbit);
-    __set_bit(KEY_F1, sensor_input_dev->keybit);
+    __set_bit(KEY_WAKEUP, sensor_input_dev->keybit);
     __set_bit(EV_SYN, sensor_input_dev->evbit);
 
     sensor_input_dev->name = "double-tap";
