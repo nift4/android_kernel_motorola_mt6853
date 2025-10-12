@@ -1541,7 +1541,7 @@ PVRSRV_ERROR OSChangeSparseMemCPUAddrMap(void **psPageArray,
 	}
 
 	/* Acquire the memory sem */
-	down_write(&psMM->mmap_sem);
+	mmap_write_lock(psMM);
 
 	psMapping = psVMA->vm_file->f_mapping;
 
@@ -1666,7 +1666,7 @@ PVRSRV_ERROR OSChangeSparseMemCPUAddrMap(void **psPageArray,
 
 	eError = PVRSRV_OK;
 eFailed:
-	up_write(&psMM->mmap_sem);
+	mmap_write_unlock(psMM);
 
 	return eError;
 }
