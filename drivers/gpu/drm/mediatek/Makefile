@@ -30,6 +30,7 @@ mediatek-drm-y := mtk_drm_drv.o \
 		  mtk_drm_mmp.o \
 		  mtk_drm_trace.o \
 		  mtk_panel_ext.o \
+		  mtk_disp_notify.o \
 		  mtk_drm_helper.o \
 		  mtk_drm_lowpower.o \
 		  mtk_disp_postmask.o \
