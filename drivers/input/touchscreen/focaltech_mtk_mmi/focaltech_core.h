@@ -204,6 +204,8 @@ struct fts_ts_data {
     bool cover_mode;
     bool charger_mode;
     bool gesture_mode;      /* gesture enable or disable, default: disable */
+    bool single_gesture_mode;
+    bool double_gesture_mode;
     bool prc_mode;
     struct pen_event pevent;
     /* multi-touch */
@@ -232,6 +234,7 @@ struct fts_ts_data {
     bool wakeable;
     struct mutex state_mutex;
     struct focaltech_sensor_platform_data *sensor_pdata;
+    struct timer_list gt_timer;
 #endif
 };
 
@@ -260,6 +263,7 @@ int fts_bus_exit(struct fts_ts_data *ts_data);
 int fts_gesture_init(struct fts_ts_data *ts_data);
 int fts_gesture_exit(struct fts_ts_data *ts_data);
 void fts_gesture_recovery(struct fts_ts_data *ts_data);
+void fts_gesture_timer(struct timer_list *t);
 int fts_gesture_readdata(struct fts_ts_data *ts_data, u8 *data);
 int fts_gesture_suspend(struct fts_ts_data *ts_data);
 int fts_gesture_resume(struct fts_ts_data *ts_data);

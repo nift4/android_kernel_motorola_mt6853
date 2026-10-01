@@ -1348,6 +1348,7 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
     mutex_init(&ts_data->bus_lock);
 #ifdef FOCALTECH_SENSOR_EN
     mutex_init(&ts_data->state_mutex);
+    timer_setup(&ts_data->gt_timer, fts_gesture_timer, 0);
 #endif
 
     /* Init communication interface */
@@ -1481,6 +1482,7 @@ err_bus_init:
     kfree_safe(ts_data->bus_tx_buf);
     kfree_safe(ts_data->bus_rx_buf);
     kfree_safe(ts_data->pdata);
+    del_timer_sync(&ts_data->gt_timer);
 
     FTS_FUNC_EXIT();
     return ret;
@@ -1536,6 +1538,7 @@ static int fts_ts_remove_entry(struct fts_ts_data *ts_data)
     fts_power_source_exit(ts_data);
 #endif
 
+    del_timer_sync(&ts_data->gt_timer);
     kfree_safe(ts_data->point_buf);
     kfree_safe(ts_data->events);
 

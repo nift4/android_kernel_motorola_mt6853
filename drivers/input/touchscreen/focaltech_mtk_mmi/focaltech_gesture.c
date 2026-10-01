@@ -152,9 +152,11 @@ static ssize_t fts_gesture_store(
     if (FTS_SYSFS_ECHO_ON(buf)) {
         FTS_DEBUG("enable gesture");
         ts_data->gesture_mode = ENABLE;
+        ts_data->single_gesture_mode = ENABLE;
     } else if (FTS_SYSFS_ECHO_OFF(buf)) {
         FTS_DEBUG("disable gesture");
-        ts_data->gesture_mode = DISABLE;
+        ts_data->gesture_mode = ts_data->double_gesture_mode;
+        ts_data->single_gesture_mode = DISABLE;
     }
     mutex_unlock(&ts_data->input_dev->mutex);
 
@@ -233,58 +235,10 @@ static int fts_create_gesture_sysfs(struct device *dev)
     return 0;
 }
 
-static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
+static void fts_gesture_report(struct input_dev *input_dev, bool double_tap)
 {
-    int gesture;
-
-    FTS_DEBUG("gesture_id:0x%x", gesture_id);
-    switch (gesture_id) {
-    case GESTURE_LEFT:
-        gesture = KEY_GESTURE_LEFT;
-        break;
-    case GESTURE_RIGHT:
-        gesture = KEY_GESTURE_RIGHT;
-        break;
-    case GESTURE_UP:
-        gesture = KEY_GESTURE_UP;
-        break;
-    case GESTURE_DOWN:
-        gesture = KEY_GESTURE_DOWN;
-        break;
-    case GESTURE_DOUBLECLICK:
-        gesture = KEY_GESTURE_U;
-        break;
-    case GESTURE_O:
-        gesture = KEY_GESTURE_O;
-        break;
-    case GESTURE_W:
-        gesture = KEY_GESTURE_W;
-        break;
-    case GESTURE_M:
-        gesture = KEY_GESTURE_M;
-        break;
-    case GESTURE_E:
-        gesture = KEY_GESTURE_E;
-        break;
-    case GESTURE_L:
-        gesture = KEY_GESTURE_L;
-        break;
-    case GESTURE_S:
-        gesture = KEY_GESTURE_S;
-        break;
-    case GESTURE_V:
-        gesture = KEY_GESTURE_V;
-        break;
-    case GESTURE_Z:
-        gesture = KEY_GESTURE_Z;
-        break;
-    case  GESTURE_C:
-        gesture = KEY_GESTURE_C;
-        break;
-    default:
-        gesture = -1;
-        break;
-    }
+    int gesture = KEY_SCREENSAVER;
+    if (double_tap) gesture = KEY_WAKEUP;
     /* report event key */
     if (gesture != -1) {
         FTS_DEBUG("Gesture Code=%d", gesture);
@@ -293,9 +247,12 @@ static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
             FTS_INFO("Gesture got but wakeable not set. Skip this gesture.");
             return;
         }
-        input_report_key(fts_data->sensor_pdata->input_sensor_dev, KEY_WAKEUP, 1);
+        if (!(double_tap ? fts_data->double_gesture_mode : fts_data->single_gesture_mode)) {
+            return;
+        }
+        input_report_key(fts_data->sensor_pdata->input_sensor_dev, gesture, 1);
         input_sync(fts_data->sensor_pdata->input_sensor_dev);
-        input_report_key(fts_data->sensor_pdata->input_sensor_dev, KEY_WAKEUP, 0);
+        input_report_key(fts_data->sensor_pdata->input_sensor_dev, gesture, 0);
         input_sync(fts_data->sensor_pdata->input_sensor_dev);
 #ifdef CONFIG_HAS_WAKELOCK
         wake_lock_timeout(&gesture_wakelock, msecs_to_jiffies(5000));
@@ -311,17 +268,28 @@ static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
     }
 }
 
+void fts_gesture_timer(struct timer_list *t)
+{
+    struct fts_ts_data *ts_data = container_of(t, struct fts_ts_data, gt_timer);
+
+    mutex_lock(&ts_data->state_mutex);
+    fts_gesture_report(ts_data->input_dev, false);
+    mutex_unlock(&ts_data->state_mutex);
+}
+
 #ifdef FOCALTECH_SENSOR_EN
 static int fts_sensor_set_enable(struct sensors_classdev *sensors_cdev,
     unsigned int enable)
 {
     FTS_INFO("Gesture set enable %d!", enable);
     mutex_lock(&fts_data->state_mutex);
-    if (enable == 1)
+    if (enable == 1) {
+        fts_data->double_gesture_mode = true;
         fts_data->gesture_mode = true;
-    else if (enable == 0)
-        fts_data->gesture_mode = false;
-    else
+    } else if (enable == 0) {
+        fts_data->double_gesture_mode = false;
+        fts_data->gesture_mode = fts_data->single_gesture_mode;
+    } else
         FTS_INFO("unknown enable symbol\n");
 
     mutex_unlock(&fts_data->state_mutex);
@@ -351,6 +319,7 @@ static int fts_sensor_init(struct fts_ts_data *data)
 
     __set_bit(EV_KEY, sensor_input_dev->evbit);
     __set_bit(KEY_WAKEUP, sensor_input_dev->keybit);
+    __set_bit(KEY_SCREENSAVER, sensor_input_dev->keybit);
     __set_bit(EV_SYN, sensor_input_dev->evbit);
 
     sensor_input_dev->name = "double-tap";
@@ -455,8 +424,14 @@ int fts_gesture_readdata(struct fts_ts_data *ts_data, u8 *data)
                                          + buf[3 + index]);
     }
 
-    /* report gesture to OS */
-    fts_gesture_report(input_dev, gesture->gesture_id);
+    mutex_lock(&ts_data->state_mutex);
+    if (del_timer(&ts_data->gt_timer)) {
+        /* report gesture to OS */
+        fts_gesture_report(input_dev, true);
+    } else {
+        mod_timer(&ts_data->gt_timer, jiffies + msecs_to_jiffies(300));
+    }
+    mutex_unlock(&ts_data->state_mutex);
     return 0;
 }
 
